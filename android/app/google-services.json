@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "447863742589",
+    "project_id": "cashit-f42d7",
+    "storage_bucket": "cashit-f42d7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:447863742589:android:5d431bfda517d399811114",
+        "android_client_info": {
+          "package_name": "com.example.cashit"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXxRT27iO2TqqvIn28cflAAqoraZo6DkU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
