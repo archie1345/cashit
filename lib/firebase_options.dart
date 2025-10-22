@@ -64,6 +64,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '447863742589',
     projectId: 'cashit-f42d7',
     storageBucket: 'cashit-f42d7.firebasestorage.app',
+    androidClientId: '447863742589-fipieaa6d98kre4e8flp3air2df78ksm.apps.googleusercontent.com',
+    iosClientId: '447863742589-rplnurjudtouqnm85cm163hm3avqnttu.apps.googleusercontent.com',
     iosBundleId: 'com.example.cashit',
   );
 
@@ -73,6 +75,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '447863742589',
     projectId: 'cashit-f42d7',
     storageBucket: 'cashit-f42d7.firebasestorage.app',
+    androidClientId: '447863742589-fipieaa6d98kre4e8flp3air2df78ksm.apps.googleusercontent.com',
+    iosClientId: '447863742589-rplnurjudtouqnm85cm163hm3avqnttu.apps.googleusercontent.com',
     iosBundleId: 'com.example.cashit',
   );
 
@@ -85,4 +89,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'cashit-f42d7.firebasestorage.app',
     measurementId: 'G-41L5EBEV62',
   );
+
 }

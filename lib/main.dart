@@ -1,12 +1,46 @@
+import 'dart:io';
+import 'package:cashit/testing/auth_wrapper.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 
 Future<void> main() async {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  FlutterError.onError = (FlutterErrorDetails details) {
+    debugPrint('FlutterError caught: ${details.exceptionAsString()}');
+    if (details.stack != null) {
+      debugPrintStack(stackTrace: details.stack);
+    }
+  };
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
-);
+  );
+
+  bool isStripeSupported = false;
+  if (kIsWeb) {
+    isStripeSupported = true;
+  } else {
+    try{
+      if(Platform.isAndroid || Platform.isIOS){
+        isStripeSupported = true;
+      }
+    }catch(e){
+      isStripeSupported = false;
+    }
+  }
+
+  if(isStripeSupported){
+    Stripe.publishableKey = "pk_test_51SIQfcKB84pAaJ2EDDbGR9JLqbOPLi9dNP1SLiHn1PpjW1ZsZMfc4M9FYegYalQr0jRF5REYUiUDvdphCXADvrwT00cpg44yLb";
+    if (!kIsWeb) {
+      await Stripe.instance.applySettings();
+    }
+  }
+
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -16,9 +50,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CashIt',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      )
+      home: const AuthWrapper(),
     );
   }
 }
+

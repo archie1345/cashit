@@ -45,5 +45,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>CFBundleTypeRole</key>
+	<string>Editor</string>
+	<key>CFBundleURLName</key>
+	<string>com.example.cashit</string> 
+	<key>CFBundleURLSchemes</key>
+	<array>
+		<string>cashit</string>
+	</array>
 </dict>
 </plist>
