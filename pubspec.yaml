@@ -21,7 +21,10 @@ dependencies:
   flutter_stripe: ^12.0.2
   url_launcher: ^6.3.2
   flutter_stripe_web: ^7.0.0
-  uni_links: ^0.5.1
+  app_links: ^6.4.1
+  flutter_svg: ^2.2.1
+  font_awesome_flutter: ^10.12.0
+  google_fonts: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -30,4 +33,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
+  assets:
+    - assets/logo.svg
+    - assets/mail.svg
+    - assets/lock.svg
+    - assets/image.svg 
+    - assets/image.png
+    - assets/IdentificationCard.svg

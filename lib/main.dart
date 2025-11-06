@@ -1,4 +1,8 @@
 import 'dart:io';
+import 'package:cashit/page/login.dart';
+import 'package:cashit/page/register.dart';
+import 'package:cashit/page/registerForm.dart';
+import 'package:cashit/page/splashScreen.dart';
 import 'package:cashit/testing/auth_wrapper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -50,7 +54,15 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CashIt',
-      home: const AuthWrapper(),
+      // home: const AuthWrapper(),
+      routes: {
+        '/': (context) => const Splashscreen(),
+        '/login': (context) => const LoginPage(),
+        '/home': (context) => const AuthWrapper(),
+        '/register': (context) => const RegisterPage(),
+        '/registerform': (context) => Registerform(),
+        
+      }
     );
   }
 }
