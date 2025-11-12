@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+// import 'package:google_sign_in/google_sign_in.dart';
 import 'package:url_launcher/url_launcher.dart';
 const String baseUrl = "https://api-cksvvgpqtq-uc.a.run.app";
 
@@ -15,11 +15,20 @@ const String baseUrl = "https://api-cksvvgpqtq-uc.a.run.app";
 class FirebaseAuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  // final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   
   // Sign up a new user
   Future<User?> signUpWithEmailAndPassword(
-      String email, String password, String username) async {
+    String email,
+    String password,
+    String username,
+    String fullname,
+    String idNum,
+    String birthLoc,
+    String birthDate,
+    String address,
+    String reason,
+    ) async {
     try {
       final credential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
@@ -36,13 +45,30 @@ class FirebaseAuthService {
       await user.updateDisplayName(username);
       await user.reload();
       final refreshedUser = _firebaseAuth.currentUser!;
+      final uid = refreshedUser.uid;
 
       // Save user to Firestore
-      await _firestore.collection('users').doc(user.uid).set({
+      await _firestore.collection('users').doc(uid).set({
+        'uid': uid,
         'email': email,
         'username': username,
-        'uid': user.uid,
         'createdAt': Timestamp.now(),
+        'nasabahId': uid, // Link to the nasabah table
+      });
+
+      await _firestore.collection('nasabah').doc(uid).set({
+        'uid': uid,
+        'userUid': uid,
+        'fullname': fullname,
+        'balance': 0,
+        'nik': idNum,
+        'birthLocation': birthLoc,
+        'birthDate': birthDate,
+        'address': address,
+        'accountReason': reason,
+        'stripeCustomerId': null,
+        'stripeAccountId': null,
+        'profileCreatedAt': Timestamp.now(),
       });
 
       await _onboardUserToStripe(refreshedUser, username);
@@ -85,11 +111,10 @@ class FirebaseAuthService {
         final data = jsonDecode(response.body);
         debugPrint("Stripe customer created: $data");
 
-        await FirebaseFirestore.instance.collection('customers').doc(userId).set({
-          'stripeAccountId': data['customerId'],
+        await FirebaseFirestore.instance.collection('nasabah').doc(userId).set({
+          'stripeCustomerId': data['customerId'],
           'email': email,
           'username': username,
-          'createdAt': FieldValue.serverTimestamp(),
         });
       } else {
         debugPrint('Failed to create Stripe customer: ${response.body}');
@@ -126,88 +151,88 @@ class FirebaseAuthService {
     return null;
   }
 
-Future<void> signInWithGoogle(BuildContext context) async {
+// Future<void> signInWithGoogle(BuildContext context) async {
   
-  try{
-    if (Platform.isWindows) {
-        throw UnimplementedError("Google Sign-In is not supported on Windows.");
-     }
-  } catch(e){
-    _showPlatformToast(message: "Google Sign-In is not supported on this platform.");
-    debugPrint('Google Sign-In Error: Unimplemented on this platform.');
-    return;
-  }
+//   try{
+//     if (Platform.isWindows) {
+//         throw UnimplementedError("Google Sign-In is not supported on Windows.");
+//      }
+//   } catch(e){
+//     _showPlatformToast(message: "Google Sign-In is not supported on this platform.");
+//     debugPrint('Google Sign-In Error: Unimplemented on this platform.');
+//     return;
+//   }
 
-  try{
-    final configUrl = Uri.parse('$baseUrl/api/config');
-    final response = await http.get(configUrl);
+//   try{
+//     final configUrl = Uri.parse('$baseUrl/api/config');
+//     final response = await http.get(configUrl);
 
-    if (response.statusCode != 200) {
-      _showPlatformToast(message: "Error connecting to server.");
-      return;
-    }
-    final config = json.decode(response.body);
-    final clientId = config['googleClientId'];
+//     if (response.statusCode != 200) {
+//       _showPlatformToast(message: "Error connecting to server.");
+//       return;
+//     }
+//     final config = json.decode(response.body);
+//     final clientId = config['googleClientId'];
 
-    if (clientId == null || clientId.isEmpty) {
-      _showPlatformToast(message: "Server configuration error.");
-      return;
-    }
-    await _googleSignIn.initialize(serverClientId: clientId);
+//     if (clientId == null || clientId.isEmpty) {
+//       _showPlatformToast(message: "Server configuration error.");
+//       return;
+//     }
+//     await _googleSignIn.initialize(serverClientId: clientId);
 
-    final GoogleSignInAccount user = await _googleSignIn.authenticate();
+//     final GoogleSignInAccount user = await _googleSignIn.authenticate();
 
-    final GoogleSignInClientAuthorization? authorization = await user.authorizationClient.authorizationForScopes(['email','profile']);
+//     final GoogleSignInClientAuthorization? authorization = await user.authorizationClient.authorizationForScopes(['email','profile']);
 
-    final GoogleSignInAuthentication authentication = user.authentication;
+//     final GoogleSignInAuthentication authentication = user.authentication;
 
-    if (authorization == null) {
-        _showPlatformToast(message: "failed to retrieve authorization tokens.");
-        return;
-      }
+//     if (authorization == null) {
+//         _showPlatformToast(message: "failed to retrieve authorization tokens.");
+//         return;
+//       }
 
-    final OAuthCredential credential = GoogleAuthProvider.credential(
-      accessToken: authorization.accessToken,
-      idToken: authentication.idToken,
-    );
-    final UserCredential userCredential = await _firebaseAuth.signInWithCredential(credential);
+//     final OAuthCredential credential = GoogleAuthProvider.credential(
+//       accessToken: authorization.accessToken,
+//       idToken: authentication.idToken,
+//     );
+//     final UserCredential userCredential = await _firebaseAuth.signInWithCredential(credential);
 
-    final userData = userCredential.user;
+//     final userData = userCredential.user;
 
-    if (userData != null) {
-      final userDoc = await _firestore.collection('users').doc(userData.uid).get();
-      if (!userDoc.exists) {
-          // This is a new user, so we save them to Firestore and onboard them
-          print('New Google user detected. Onboarding to Stripe...');
-          await _firestore.collection('users').doc(userData.uid).set({
-            'username': userData.displayName ?? '',
-            'email': userData.email ?? '',
-            'uid': userData.uid,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-          // Call the same onboarding function as the email signup.
-          await _onboardUserToStripe(userData, userData.displayName ?? 'New User');
-        }
-      await createStripeCustomer(userData.uid);
+//     if (userData != null) {
+//       final userDoc = await _firestore.collection('users').doc(userData.uid).get();
+//       if (!userDoc.exists) {
+//           // This is a new user, so we save them to Firestore and onboard them
+//           print('New Google user detected. Onboarding to Stripe...');
+//           await _firestore.collection('users').doc(userData.uid).set({
+//             'username': userData.displayName ?? '',
+//             'email': userData.email ?? '',
+//             'uid': userData.uid,
+//             'createdAt': FieldValue.serverTimestamp(),
+//           });
+//           // Call the same onboarding function as the email signup.
+//           await _onboardUserToStripe(userData, userData.displayName ?? 'New User');
+//         }
+//       await createStripeCustomer(userData.uid);
 
-      await _firestore.collection('users').doc(userData.uid).set({
-        'username': userData.displayName ?? '',
-        'email': userData.email ?? 'N/A',
-        'uid': userData.uid,
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    }
+//       await _firestore.collection('users').doc(userData.uid).set({
+//         'username': userData.displayName ?? '',
+//         'email': userData.email ?? 'N/A',
+//         'uid': userData.uid,
+//         'createdAt': FieldValue.serverTimestamp(),
+//       }, SetOptions(merge: true));
+//     }
 
-    _showPlatformToast(message: "Signed in succesfully");
-    Navigator.pushNamed(context, "/home");
-  } on FirebaseAuthException catch (e) {
-      _showPlatformToast(message: "Firebase Auth Error: ${e.message}");
-      debugPrint('Firebase Auth Error: $e');
-    } catch (e) {
-      debugPrint('Google Sign-In Error: $e');
-      _showPlatformToast(message: "An unexpected error occurred during Google Sign-In.");
-  }
-}
+//     _showPlatformToast(message: "Signed in succesfully");
+//     Navigator.pushReplacementNamed(context, "/home");
+//   } on FirebaseAuthException catch (e) {
+//       _showPlatformToast(message: "Firebase Auth Error: ${e.message}");
+//       debugPrint('Firebase Auth Error: $e');
+//     } catch (e) {
+//       debugPrint('Google Sign-In Error: $e');
+//       _showPlatformToast(message: "An unexpected error occurred during Google Sign-In.");
+//   }
+// }
 
 void onUserLogin() async {
   final user = FirebaseAuth.instance.currentUser;
@@ -219,7 +244,7 @@ void onUserLogin() async {
   Future<void> signOut() async {
     try {
       await FirebaseAuth.instance.signOut();
-      await GoogleSignIn.instance.disconnect();
+      // await GoogleSignIn.instance.disconnect();
       _showPlatformToast(message: "Successfully signed out.");
     } catch (e) {
       debugPrint('Sign-Out Error: $e');

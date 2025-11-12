@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:intl/intl.dart';
 
 class FormContainerWidget extends StatefulWidget {
   final TextEditingController? controller;
@@ -14,6 +15,7 @@ class FormContainerWidget extends StatefulWidget {
   final TextInputType? inputType;
   final String? iconPath;
   final String? title;
+  final bool? isDatePicker;
 
   const FormContainerWidget({
     super.key,
@@ -29,6 +31,7 @@ class FormContainerWidget extends StatefulWidget {
     this.inputType,
     this.iconPath,
     this.title,
+    this.isDatePicker,
   });
 
   @override
@@ -37,6 +40,24 @@ class FormContainerWidget extends StatefulWidget {
 
 class _FormContainerWidgetState extends State<FormContainerWidget> {
   bool _obscureText = true;
+
+  Future<void> _selectDate(BuildContext context) async {
+    FocusScope.of(context).requestFocus(new FocusNode());
+
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2101),
+    );
+
+    if (picked != null) {
+      setState(() {
+        // Format the date and update the controller
+        widget.controller?.text = DateFormat.yMd().format(picked);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -80,38 +101,55 @@ class _FormContainerWidgetState extends State<FormContainerWidget> {
               onSaved: widget.onSaved,
               validator: widget.validator,
               onFieldSubmitted: widget.onFieldSubmitted,
+              readOnly: widget.isDatePicker == true,
+              onTap: () {
+                if (widget.isDatePicker == true) {
+                  _selectDate(context);
+                }
+              },
               decoration: InputDecoration(
                 fillColor: Colors.white,
-                icon: SizedBox(
-                  width: 35,
-                  height: 35,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top:8.0, bottom: 8.0,left: 8.0),
-                    child: SvgPicture.asset(
-                    widget.iconPath!,
-                    width: 20,
-                    height: 20,
-                    ),
-                  ),
-                ),
+                icon: (widget.iconPath != null && widget.iconPath!.isNotEmpty)
+                    ? SizedBox(
+                        width: 35,
+                        height: 35,
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                              top: 8.0, bottom: 8.0, left: 8.0),
+                          child: SvgPicture.asset(
+                            widget.iconPath!,
+                            width: 20,
+                            height: 20,
+                          ),
+                        ),
+                      )
+                    : null,
                 border: InputBorder.none,
               filled: true,
               hintText: widget.hintText,
               hintStyle: const TextStyle(color: Colors.black45),
               contentPadding: const EdgeInsets.symmetric(vertical: 16.0), // Adjust padding for vertical centering
-              suffixIcon: widget.isPasswordField == true ? GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _obscureText = !_obscureText;
-                  });
-                },
-                child: widget.isPasswordField == true
-                    ? Icon(
-                        _obscureText ? Icons.visibility_off : Icons.visibility,
-                        color: _obscureText == false ? Colors.black : Colors.grey,
-                      )
-                    : const Text(""),
-              ):null,
+              suffixIcon: widget.isPasswordField == true
+                ? GestureDetector( // 1. If it's a password field
+                  onTap: () {
+                    setState(() {
+                      _obscureText = !_obscureText;
+                    });
+                  },
+                    child: Icon(
+                      _obscureText
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                      color: _obscureText == false
+                        ? Colors.black
+                        : Colors.grey,
+                    ),
+                  )
+                : widget.isDatePicker == true
+                  ? Icon(
+                      Icons.calendar_today,
+                      color: Colors.grey[600],
+                ): null,
               ),
             ),
           ),

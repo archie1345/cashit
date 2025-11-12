@@ -1,9 +1,10 @@
 import 'dart:io';
 import 'package:cashit/page/login.dart';
 import 'package:cashit/page/register.dart';
-import 'package:cashit/page/registerForm.dart';
+import 'package:cashit/page/accountCreation.dart';
+import 'package:cashit/page/registrationForm.dart';
 import 'package:cashit/page/splashScreen.dart';
-import 'package:cashit/testing/auth_wrapper.dart';
+import 'package:cashit/page/home.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -54,14 +55,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CashIt',
-      // home: const AuthWrapper(),
       routes: {
         '/': (context) => const Splashscreen(),
         '/login': (context) => const LoginPage(),
-        '/home': (context) => const AuthWrapper(),
+        '/home': (context) => const Homepage(),
         '/register': (context) => const RegisterPage(),
         '/registerform': (context) => Registerform(),
-        
+        '/accountcreation': (context) => Accountcreation(),
       }
     );
   }
