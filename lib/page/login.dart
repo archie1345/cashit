@@ -1,6 +1,7 @@
 import 'package:cashit/backend/firebase_auth_service.dart';
 import 'package:cashit/classes/colors.dart';
 import 'package:cashit/widget/form_container_widget.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -238,7 +239,32 @@ class _LoginPageState extends State<LoginPage> {
 
       if (mounted) {
         if (user != null) {
-          Navigator.pushReplacementNamed(context, '/home');
+          try {
+            final userDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .get();
+
+            if (!mounted) return;
+
+            if (userDoc.exists) {
+              final data = userDoc.data() as Map<String, dynamic>;
+              
+              final pinHash = data['pinHash'] as String?;
+
+              if (pinHash != null && pinHash.isNotEmpty) {
+                Navigator.pushReplacementNamed(context, '/home');
+              } else {
+                Navigator.pushReplacementNamed(context, '/create_pin');
+              }
+            } else {
+              Navigator.pushReplacementNamed(context, '/create_pin');
+            }
+
+          } catch (e) {
+            setState(() =>
+                _message = 'Error fetching user data. Please try again.');
+          }
         } else {
           setState(() {
             _message = 'Invalid email or password.';
@@ -251,5 +277,4 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-  
 }

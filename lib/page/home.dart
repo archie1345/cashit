@@ -1,6 +1,15 @@
 import 'dart:async';
+import 'package:cashit/classes/colors.dart';
+import 'package:cashit/widget/recentTransaction.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:app_links/app_links.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cashit/page/successAddBalance.dart';
 
 class Homepage extends StatefulWidget{
   const Homepage({super.key});
@@ -11,40 +20,84 @@ class Homepage extends StatefulWidget{
 
 class _HomepageState extends State<Homepage> with WidgetsBindingObserver{
   Timer? _inactivityTimer;
+  late final AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
   final _timeoutDuration = const Duration(minutes: 5);
+  String? _userId;
+  bool _isBalanceVisible = true;
+  Stream<DocumentSnapshot>? _balanceStream;
+
   
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    _userId = FirebaseAuth.instance.currentUser?.uid;
+    if (_userId != null) {
+      _balanceStream = FirebaseFirestore.instance
+          .collection('users')
+          .doc(_userId)
+          .snapshots();
+    }
+    _appLinks = AppLinks();
+    _handleIncomingLinks();
   }
+
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _inactivityTimer?.cancel();
+    _linkSubscription?.cancel();
     super.dispose();
   }
 
-  void _signOut() {
-    // You might want to check if the user is still mounted or logged in
-    if (FirebaseAuth.instance.currentUser != null) {
-      FirebaseAuth.instance.signOut();
-      print("User signed out due to inactivity.");
+  void _handleIncomingLinks() {
+    _linkSubscription = _appLinks.uriLinkStream.listen((Uri uri) {
+      if (!mounted) return;
+      _handleDeepLink(uri);
+    }, onError: (err) {
+      debugPrint('Got error listening to incoming links: $err');
+    });
+  }
+
+void _handleDeepLink(Uri uri) async {
+    debugPrint("Received deep link: $uri");
+    
+    if (uri.scheme == 'cashit' && uri.host == 'checkout' && uri.pathSegments.contains('success')) {
+      
+      final prefs = await SharedPreferences.getInstance();
+      final amount = prefs.getInt('pending_topup_amount');
+      
+      if (amount != null) {
+        await prefs.remove('pending_topup_amount');
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TopUpSuccessPage(
+              amount: amount,
+              transactionDate: DateTime.now(),
+            ),
+          ),
+        );
+      }
     }
   }
 
    Future<void> _signOutAndNavigate() async {
-    // Check if a user is currently signed in
+    _inactivityTimer?.cancel();
+
     if (FirebaseAuth.instance.currentUser != null) {
       await FirebaseAuth.instance.signOut();
       print("User signed out.");
 
-      // After sign out, navigate back to login and remove all previous routes
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
           context,
           '/login',
-          (route) => false, // This predicate removes all routes
+          (route) => false,
         );
       }
     }
@@ -65,14 +118,18 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver{
         print("Timer Canceled: App Resumed");
         break;
       case AppLifecycleState.paused:
-        _inactivityTimer?.cancel(); // Cancel any existing timer
-        _inactivityTimer = Timer(_timeoutDuration, _signOut);
+        _inactivityTimer?.cancel();
+        _inactivityTimer = Timer(_timeoutDuration, _onInactivitySignOut);
         print("Timer Started: App Paused");
         break;
       case AppLifecycleState.detached:
         print("App Detached");
+        _signOutAndNavigate();
         break;
       case AppLifecycleState.hidden:
+        _inactivityTimer?.cancel();
+        _inactivityTimer = Timer(_timeoutDuration, _onInactivitySignOut);
+        print("Timer Started: App is in background ($state)");
         break;
       case AppLifecycleState.inactive:
         _inactivityTimer?.cancel();
@@ -80,6 +137,37 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver{
         print("Timer Started: App Inactive");
         break;
     }
+  }
+
+Widget _buildMenuButton({
+    required String label,
+    required String svgPath,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: 60,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: SvgPicture.asset(svgPath, height: 24, width: 24),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(fontSize: 12),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            )
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -93,10 +181,215 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver{
             tooltip: 'Logout',
             onPressed: _signOutAndNavigate,
           ),
+          IconButton(
+            icon: Icon(Icons.adjust_rounded),
+            tooltip: 'test page',
+            onPressed: () {
+              Navigator.pushNamed(context, '/testingpage');
+            },
+          )
         ],
       ),
       body: Center(
-        child: Text('Home Page'),
+        child: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [ColorPalletes.pastelGreen, ColorPalletes.pastelpurple, ColorPalletes.pastelPink],
+                    stops: [0.3, 0.75, 1.0],
+                  ),
+                ),
+              ),
+            SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: 400),
+                    child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(10.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SvgPicture.asset('assets/logo_text.svg', width: 150),
+                                Row(
+                                  children: [
+                                    Text( 
+                                      'Hello, ',
+                                      textAlign: TextAlign.left,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    Text( 
+                                      '${FirebaseAuth.instance.currentUser?.displayName ?? 'User'}!',
+                                      textAlign: TextAlign.left,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 10.0),
+                                  child: Text(
+                                    'Total Balance',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ),
+                                StreamBuilder<DocumentSnapshot>(
+                                    stream: _balanceStream,
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const CircularProgressIndicator();
+                                      }
+                                      if (snapshot.hasError) {
+                                        return const Text("Error loading balance",
+                                            style: TextStyle(color: Colors.red));
+                                      }
+                                      if (!snapshot.hasData || !snapshot.data!.exists) {
+                                        return const Text("Balance: N/A",
+                                            style: TextStyle(color: Colors.grey));
+                                      }
+                              
+                                      final data = snapshot.data!.data() as Map<String, dynamic>;
+                                      final balance = data['balance'] ?? 0;
+                                      
+                                      final formattedBalance =
+                                        NumberFormat.currency(
+                                        locale: 'id_ID',
+                                        symbol: 'Rp ',
+                                        decimalDigits: 0,
+                                      ).format(balance);
+                              
+                                      final hiddenBalance = 'Rp ••••••••';
+                              
+                                      return Row(
+                                        children: [
+                                          Text(
+                                            _isBalanceVisible
+                                                ? formattedBalance
+                                                : hiddenBalance,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black,
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: Icon(
+                                              _isBalanceVisible
+                                                  ? Icons.visibility_off
+                                                  : Icons.visibility,
+                                              color: Colors.grey[700],
+                                            ),
+                                            onPressed: () {
+                                              setState(() {
+                                                _isBalanceVisible = !_isBalanceVisible;
+                                              }
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                        child: ConstrainedBox(
+                            constraints: 
+                              const BoxConstraints(
+                                maxWidth: 400,
+                              ),
+                              child: Container(
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                borderRadius: BorderRadius.all(Radius.circular(20)),
+                                color: Colors.white,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(10.0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    _buildMenuButton(
+                                      label: 'Add \nbalance',
+                                      svgPath: 'assets/add_Balance.svg',
+                                      onTap: () {
+                                        // TODO: Navigate to your top-up page
+                                        Navigator.pushNamed(context, '/add_balance');
+                                      },
+                                    ),
+                                    _buildMenuButton(
+                                      label: 'Top Up',
+                                      svgPath: 'assets/top-up.svg',
+                                      onTap: () {
+                                        // TODO: Navigate to your top-up page
+                                        // Navigator.pushNamed(context, '/topup');
+                                      },
+                                    ),
+                                    _buildMenuButton(
+                                      label: 'Transfer',
+                                      svgPath: 'assets/transfer.svg',
+                                      onTap: () {
+                                        // TODO: Navigate to your transfer page
+                                        // Navigator.pushNamed(context, '/transfer');
+                                      },
+                                    ),
+                                    _buildMenuButton(
+                                      label: 'History',
+                                      svgPath: 'assets/history.svg',
+                                      onTap: () {
+                                        // TODO: Navigate to your history page
+                                        Navigator.pushNamed(context, '/history');
+                                      }
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: 400, maxHeight: 400),
+                            child: RecentTransactions(
+                              limit: 4,
+                              useDummyData: false)
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ]
+        ),
       ),
     );
   }

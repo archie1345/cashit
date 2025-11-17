@@ -57,7 +57,7 @@ class _AccountcreationState extends State<Accountcreation> {
     }
 
     if (user != null && mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+      Navigator.pushNamedAndRemoveUntil(context, '/create_pin', (route) => false);
     }
   }
 

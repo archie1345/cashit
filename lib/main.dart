@@ -1,10 +1,14 @@
 import 'dart:io';
+import 'package:cashit/page/addBalancePage.dart';
+import 'package:cashit/page/createPin.dart';
+import 'package:cashit/page/historyPage.dart';
 import 'package:cashit/page/login.dart';
 import 'package:cashit/page/register.dart';
 import 'package:cashit/page/accountCreation.dart';
 import 'package:cashit/page/registrationForm.dart';
 import 'package:cashit/page/splashScreen.dart';
 import 'package:cashit/page/home.dart';
+import 'package:cashit/testing/testingPage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -62,6 +66,11 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegisterPage(),
         '/registerform': (context) => Registerform(),
         '/accountcreation': (context) => Accountcreation(),
+        '/create_pin':(context) => CreatePinPage(),
+        '/history':(context) => HistoryPage(),
+        '/add_balance':(context) => Addbalancepage(),
+        '/testingpage':(context) => TestingPage(),
+        // '/add_balance_success':(context) => 
       }
     );
   }

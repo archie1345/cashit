@@ -22,6 +22,9 @@ const db = admin.firestore();
 const app = express();
 
 app.use(cors({origin: true}));
+app.use('/api/webhook', express.raw({type: 'application/json'}));
+
+app.use(express.json());
 
 const authenticateFirebaseToken = async (req, res, next) => {
   try {
@@ -31,7 +34,6 @@ const authenticateFirebaseToken = async (req, res, next) => {
     }
 
     const idToken = authHeader.split(' ')[1];
-    // Verify the Firebase ID token
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     req.user = {uid: decodedToken.uid, email: decodedToken.email};
     next();
@@ -40,6 +42,8 @@ const authenticateFirebaseToken = async (req, res, next) => {
     return res.status(401).json({error: 'Unauthorized'});
   }
 };
+
+
 
 app.get('/api/config', (req, res) => {
   try {
@@ -55,53 +59,13 @@ app.get('/api/health', (req, res) => {
   res.status(200).send('OK');
 });
 
-app.get('/api/redirect-success', (req, res) => {
-  res.status(200).send(`
-    <html>
-      <head><title>Success</title></head>
-      <body>
-        <p>Success! Redirecting you back to the app...</p>
-        <script>
-          // Try to open the app deep link
-          window.location.href = 'cashit://checkout/success';
-          
-          // After 2.5 seconds, redirect to a web-based success page as a fallback
-          setTimeout(function() {
-            window.location.href = 'https://api-cksvvgpqtq-uc.a.run.app/api/web-success';
-          }, 2500);
-        </script>
-      </body>
-    </html>
-  `);
-});
-
-app.get('/api/redirect-refresh', (req, res) => {
-  res.status(200).send(`
-    <html>
-      <head><title>Canceled</title></head>
-      <body>
-        <p>Redirecting you back to the app...</p>
-        <script>
-          // Try to open the app deep link
-          window.location.href = 'cashit://checkout/cancel';
-          
-          // After 2.5 seconds, redirect to a web-based cancel page as a fallback
-          setTimeout(function() {
-            window.location.href = 'https://api-cksvvgpqtq-uc.a.run.app/api/web-cancel';
-          }, 2500);
-        </script>
-      </body>
-    </html>
-  `);
-});
-
 app.get('/api/web-success', (req, res) => {
   res.status(200).send(`
     <html>
       <head><title>Success</title></head>
       <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-        <h1>Onboarding Complete!</h1>
-        <p>Your account is ready. You can now return to the app.</p>
+        <h1>Action Complete!</h1>
+        <p>Your request was successful. You can now return to the app.</p>
       </body>
     </html>
   `);
@@ -112,8 +76,76 @@ app.get('/api/web-cancel', (req, res) => {
     <html>
       <head><title>Canceled</title></head>
       <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-        <h1>Onboarding Canceled</h1>
+        <h1>Action Canceled</h1>
         <p>The process was canceled. You can try again from the app.</p>
+      </body>
+    </html>
+  `);
+});
+
+app.get('/api/onboard-success', (req, res) => {
+  res.status(200).send(`
+    <html>
+      <head><title>Success</title></head>
+      <body>
+        <p>Success! Redirecting you back to the app...</p>
+        <script>
+          window.location.href = 'cashit://onboarding/success';
+          setTimeout(function() {
+            window.location.href = 'https://api-cksvvgpqtq-uc.a.run.app/api/web-success';
+          }, 2500);
+        </script>
+      </body>
+    </html>
+  `);
+});
+
+app.get('/api/onboard-refresh', (req, res) => {
+  res.status(200).send(`
+    <html>
+      <head><title>Canceled</title></head>
+      <body>
+        <p>Redirecting you back to the app...</p>
+        <script>
+          window.location.href = 'cashit://onboarding/refresh';
+          setTimeout(function() {
+            window.location.href = 'https://api-cksvvgpqtq-uc.a.run.app/api/web-cancel';
+          }, 2500);
+        </script>
+      </body>
+    </html>
+  `);
+});
+
+app.get('/api/checkout-success', (req, res) => {
+  res.status(200).send(`
+    <html>
+      <head><title>Payment Successful</title></head>
+      <body>
+        <p>Payment Successful! Redirecting you back to the app...</p>
+        <script>
+          window.location.href = 'cashit://checkout/success';
+          setTimeout(function() {
+            window.location.href = 'https://api-cksvvgpqtq-uc.a.run.app/api/web-success';
+          }, 2500);
+        </script>
+      </body>
+    </html>
+  `);
+});
+
+app.get('/api/checkout-cancel', (req, res) => {
+  res.status(200).send(`
+    <html>
+      <head><title>Payment Canceled</title></head>
+      <body>
+        <p>Payment Canceled. Redirecting you back to the app...</p>
+        <script>
+          window.location.href = 'cashit://checkout/cancel';
+          setTimeout(function() {
+            window.location.href = 'https://api-cksvvgpqtq-uc.a.run.app/api/web-cancel';
+          }, 2500);
+        </script>
       </body>
     </html>
   `);
@@ -131,7 +163,7 @@ app.post('/api/create-pin', authenticateFirebaseToken, async (req, res) => {
     const saltRounds = 10;
     const pinHash = await bcrypt.hash(pin, saltRounds);
 
-    await db.collection('nasabah').doc(userId).update({
+    await db.collection('users').doc(userId).update({
       pinHash: pinHash,
     });
 
@@ -145,14 +177,14 @@ app.post('/api/create-pin', authenticateFirebaseToken, async (req, res) => {
 app.get('/api/get-firestore-balance', authenticateFirebaseToken, async (req, res) => {
   try {
     const userId = req.user.uid;
-    const nasabahDoc = await db.collection('nasabah').doc(userId).get();
+    const userDoc = await db.collection('users').doc(userId).get();
 
-    if (!nasabahDoc.exists) {
-      return res.status(404).json({error: 'Nasabah account not found.'});
+    if (!userDoc.exists) {
+      return res.status(404).json({error: 'user account not found.'});
     }
 
-    const balance = nasabahDoc.data()?.balance ?? 0;
-    res.status(200).json({balance: balance, currency: 'usd'});
+    const balance = userDoc.data()?.balance ?? 0;
+    res.status(200).json({balance: balance, currency: 'idr'});
   } catch (error) {
     console.error('Error fetching Firestore balance:', error);
     res.status(500).json({error: error.message});
@@ -164,10 +196,9 @@ app.get('/api/get-stripe-balance', authenticateFirebaseToken, async (req, res) =
     const stripe = new Stripe(STRIPE_SECRET_KEY.value());
     const userId = req.user.uid;
 
-    // --- FIX: Read from 'nasabah' collection ---
-    const nasabahDoc = await db.collection('nasabah').doc(userId).get();
-    const stripeAccountId = nasabahDoc.data()?.stripeAccountId;
-    if (!nasabahDoc.exists || !stripeAccountId) {
+    const userDoc = await db.collection('users').doc(userId).get();
+    const stripeAccountId = userDoc.data()?.stripeAccountId;
+    if (!userDoc.exists || !stripeAccountId) {
       return res.status(404).json({error: 'User not found or has no Stripe account.'});
     }
 
@@ -193,7 +224,6 @@ app.get('/api/get-platform-balance', authenticateFirebaseToken, async (req, res)
   }
 });
 
-
 app.post('/api/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const stripeSecret = await STRIPE_WEBHOOK_SECRET.value();
@@ -214,40 +244,32 @@ app.post('/api/webhook', async (req, res) => {
     switch (event.type) {
     case 'payment_intent.succeeded': {
       const paymentIntent = event.data.object;
+      if (!paymentIntent.metadata || !paymentIntent.metadata.userId) {
+        console.warn('Webhook received payment_intent.succeeded with no userId in metadata. Skipping.');
+        return res.status(200).send('Webhook received but skipped: Missing metadata.');
+      }
       const {userId, amount, currency} = paymentIntent.metadata;
       const amountInt = parseInt(amount, 10);
 
       console.log(`PaymentIntent for user ${userId} of amount ${amount} ${currency} succeeded.`);
 
       try {
-        const paymentRef = db.collection('payment').doc();
-        const transactionRef = db.collection('transactions').doc();
-        const nasabahRef = db.collection('nasabah').doc(userId);
+        const topupRef = db.collection('topup').doc();
+        const userRef = db.collection('users').doc(userId);
 
         await db.runTransaction(async (t) => {
-          t.update(nasabahRef, {
+          t.update(userRef, {
             balance: admin.firestore.FieldValue.increment(amountInt)
           });
 
-          t.set(paymentRef, {
-            nasabahUid: userId,
+          t.set(topupRef, {
+            userId: userId,
             amount: amountInt,
             type: 'top-up',
             status: 'completed',
             gateway: 'Stripe',
-            gatewayChargeId: paymentIntent.id,
+            gatewayTransactionId: paymentIntent.id,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-
-          t.set(transactionRef, {
-            senderId: 'system-stripe',
-            recipientUid: userId,
-            amount: amountInt,
-            type: 'top-up',
-            status: 'completed',
-            description: 'Wallet Top-Up',
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            paymentId: paymentRef.id,
           });
         });
 
@@ -308,11 +330,8 @@ app.post('/api/onboard-user-account' ,authenticateFirebaseToken, async (req, res
     });
 
     // Save the Stripe customer ID to Firestore
-    await db.collection('nasabah').doc(userId).update({
+    await db.collection('users').doc(userId).update({
       stripeAccountId: account.id,
-      email: email,
-      username: normalizedUsername,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     }, {merge: true});
 
     const accountLink = await stripe.accountLinks.create({
@@ -342,22 +361,22 @@ app.post('/api/create-top-up-intent', authenticateFirebaseToken, async (req, res
     }
 
     // Get or create customerId
-    const nasabahDoc = await db.collection('nasabah').doc(userId).get();
-    if (!nasabahDoc.exists || !nasabahDoc.data().stripeAccountId) {
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists || !userDoc.data().stripeAccountId) {
       return res.status(400).json({error: 'User does not have a Stripe customer ID'});
     }
-    const destination = nasabahDoc.data().stripeAccountId;
+    const destination = userDoc.data().stripeAccountId;
 
     console.log(`Creating top-up intent for UID=${userId}, amount=${amount}, destination=${destination}`);
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount,
-      currency: 'usd',
+      currency: 'idr',
       automatic_payment_methods: {enabled: true, allow_redirects: 'never'},
       transfer_data: {
         destination: destination,
       },
-      metadata: {userId: userId, amount: amount, currency: 'usd'},
+      metadata: {userId: userId, amount: amount, currency: 'idr'},
     });
 
     res.status(200).json({clientSecret: paymentIntent.client_secret, paymentIntentId: paymentIntent.id});
@@ -384,7 +403,7 @@ app.post('/api/initiate-transfer', authenticateFirebaseToken, async (req, res) =
     }
 
     // Get sender details
-    const senderDocRef = db.collection('nasabah').doc(senderId);
+    const senderDocRef = db.collection('users').doc(senderId);
     const senderDoc = await senderDocRef.get();
     const senderAccount = senderDoc.data()?.stripeAccountId;
     const senderBalance = senderDoc.data()?.balance ?? 0;
@@ -417,14 +436,12 @@ app.post('/api/initiate-transfer', authenticateFirebaseToken, async (req, res) =
       return res.status(400).json({error: 'Recipient not found'});
     }
 
-    // Get receipent details
     const recipientId = recipientQuery.docs[0].id;
-
     if (recipientId === senderId) {
       return res.status(400).json({error: 'You cannot send money to yourself.'});
     }
 
-    const recipientDocRef = db.collection('nasabah').doc(recipientId);
+    const recipientDocRef = db.collection('users').doc(recipientId);
     const recipientDoc = await recipientDocRef.get();
     const recipientAccount = recipientDoc.data()?.stripeAccountId;
     if (!recipientDoc.exists || !recipientAccount) {
@@ -436,7 +453,7 @@ app.post('/api/initiate-transfer', authenticateFirebaseToken, async (req, res) =
 
     const reverseTransfer = await stripe.transfers.create({
       amount: amount,
-      currency: 'usd',
+      currency: 'idr',
       destination: platformAccountId,
       transfer_group: `P2P_${senderId}_${Date.now()}`,
     }, {
@@ -445,13 +462,13 @@ app.post('/api/initiate-transfer', authenticateFirebaseToken, async (req, res) =
 
     const transfer = await stripe.transfers.create({
       amount: amount,
-      currency: 'usd',
+      currency: 'idr',
       destination: recipientAccount,
       transfer_group: `P2P_${senderId}_${Date.now()}`,
     });
 
     // Log transfer to Firestore
-    const transactionRef = db.collection('transactions').doc();
+    const transactionRef = db.collection('transfer').doc();
     await db.runTransaction(async (t) => {
       t.update(senderDocRef, {
         balance: admin.firestore.FieldValue.increment(-amountInt)
@@ -462,9 +479,9 @@ app.post('/api/initiate-transfer', authenticateFirebaseToken, async (req, res) =
       t.set(transactionRef, {
         type: 'P2P_TRANSFER',
         amount: amountInt,
-        currency: 'usd',
+        currency: 'idr',
         senderId: senderId,
-        recipientUid: recipientId,
+        recipientId: recipientId,
         stripeDebitTransferId: reverseTransfer.id,
         stripeCreditTransferId: transfer.id,
         status: 'COMPLETED',
@@ -496,13 +513,13 @@ app.post('/api/create-payout', authenticateFirebaseToken, async (req, res) => {
     }
 
     // Get or create customerId
-    const nasabahDocRef = db.collection('nasabah').doc(userId);
-    const nasabahDoc = await nasabahDocRef.get();
-    const stripeAccountId = nasabahDoc.data()?.stripeAccountId;
-    const nasabahBalance = nasabahDoc.data()?.balance ?? 0;
-    const pinHash = nasabahDoc.data()?.pinHash;
+    const userDocRef = db.collection('users').doc(userId);
+    const userDoc = await userDocRef.get();
+    const stripeAccountId = userDoc.data()?.stripeAccountId;
+    const userBalance = userDoc.data()?.balance ?? 0;
+    const pinHash = userDoc.data()?.pinHash;
 
-    if (!nasabahDoc.exists || !stripeAccountId) {
+    if (!userDoc.exists || !stripeAccountId) {
       return res.status(400).json({error: 'User does not have a Stripe customer ID'});
     }
 
@@ -514,10 +531,10 @@ app.post('/api/create-payout', authenticateFirebaseToken, async (req, res) => {
       return res.status(403).json({ error: 'Invalid PIN.' });
     }
 
-    if (nasabahBalance < amountInt) {
+    if (userBalance < amountInt) {
       return res.status(400).json({
         error: 'Insufficient balance for payout',
-        availableBalance: nasabahBalance,
+        availableBalance: userBalance,
         required: amountInt,
       });
     }
@@ -526,20 +543,19 @@ app.post('/api/create-payout', authenticateFirebaseToken, async (req, res) => {
 
     const payout = await stripe.payouts.create({
       amount: amount,
-      currency: 'usd',
+      currency: 'idr',
     },{
       stripeAccount: stripeAccountId,
     });
 
-    const paymentRef = db.collection('payment').doc();
-    const transactionRef = db.collection('transactions').doc();
+    const topupRef = db.collection('topup').doc();
 
     await db.runTransaction(async (t) => {
-      t.update(nasabahDocRef, {
+      t.update(userDocRef, {
         balance: admin.firestore.FieldValue.increment(-amountInt)
       });
-      t.set(paymentRef, {
-        nasabahUid: userId,
+      t.set(topupRef, {
+        userId: userId,
         amount: amountInt,
         type: 'withdrawal',
         status: payout.status,
@@ -547,23 +563,13 @@ app.post('/api/create-payout', authenticateFirebaseToken, async (req, res) => {
         gatewayChargeId: payout.id,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      t.set(transactionRef, {
-        senderId: userId,
-        recipientUid: 'system-bank',
-        amount: amountInt,
-        type: 'withdrawal',
-        status: payout.status,
-        description: 'Payout to bank account',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        paymentId: paymentRef.id,
-      });
     });
 
     res.status(200).json({
       message: 'Payout initiated successfully.',
       payoutId: payout.id,
       status: payout.status,
-      transactionId: transactionRef.id,});
+      transactionId: topupRef.id,});
 
   } catch (error) {
     console.error('Error creating payout:', error);
@@ -574,43 +580,10 @@ app.post('/api/create-payout', authenticateFirebaseToken, async (req, res) => {
   }
 });
 
-//get transaction history
-app.get('/api/transaction-history', authenticateFirebaseToken, async (req, res) => {
-  try {
-    const transactionMap = new Map();
-    const userId = req.user.uid;
-
-    const sentQuery = db.collection('transactions').where('senderId', '==', userId);
-    const receivedQuery = db.collection('transactions').where('recipientUid', '==', userId);
-    const userActionQuery = db.collection('transactions').where('userId', '==', userId);
-
-    const [sentSnapshot, receivedSnapshot, userActionSnapshot] = await Promise.all([
-      sentQuery.get(),
-      receivedQuery.get(),
-      userActionQuery.get(),
-    ]);
-
-    sentSnapshot.forEach((doc) => transactionMap.set(doc.id, {id: doc.id, ...doc.data(), direction: 'SENT'}));
-    receivedSnapshot.forEach((doc) => transactionMap.set(doc.id, {id: doc.id, ...doc.data(), direction: 'RECEIVED'}));
-    userActionSnapshot.forEach((doc) => {
-      if (!transactionMap.has(doc.id)) {
-        transactionMap.set(doc.id, {id: doc.id, ...doc.data(), direction: doc.data().type});
-      }
-    });
-    const uniqueTransactions = Array.from(transactionMap.values());
-    uniqueTransactions.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
-
-    res.status(200).json({transactions: uniqueTransactions});
-  } catch (error) {
-    console.error('Error fetching transaction history:', error);
-    res.status(500).json({error: error.message});
-  }
-});
-
 app.post('/api/pay-bill',authenticateFirebaseToken, async (req, res) => {
   try{
     const stripe = new Stripe(STRIPE_SECRET_KEY.value());
-    const {amount, billerAccountId, accountNumber,pin} = req.body;
+    const {amount, billerAccountId, accountNumber, pin} = req.body;
     const senderId = req.user.uid;
     const amountInt = parseInt(amount, 10);
 
@@ -622,7 +595,7 @@ app.post('/api/pay-bill',authenticateFirebaseToken, async (req, res) => {
       return res.status(400).json({ error: 'PIN is required for this transaction.' });
     }
 
-    const senderDocRef = db.collection('nasabah').doc(senderId);
+    const senderDocRef = db.collection('users').doc(senderId);
     const senderDoc = await senderDocRef.get();
     const senderAccount = senderDoc.data()?.stripeAccountId;
     const senderBalance = senderDoc.data()?.balance ?? 0;
@@ -652,13 +625,13 @@ app.post('/api/pay-bill',authenticateFirebaseToken, async (req, res) => {
 
     const reverseTransfer = await stripe.transfers.create({
       amount: amount,
-      currency: 'usd',
+      currency: 'idr',
       destination: platformAccountId,
       transfer_group: `BILL_PAY_${senderId}_${Date.now()}`,
       metadata: {
         accountNumber: accountNumber,
         billerAccountId: billerAccountId,
-        required: amount,
+        // required: amount,
       }
     }, {
       stripeAccount: senderAccount,
@@ -666,48 +639,67 @@ app.post('/api/pay-bill',authenticateFirebaseToken, async (req, res) => {
 
     const billerTransfer = await stripe.transfers.create({
       amount: amountInt,
-      currency: 'usd',
+      currency: 'idr',
       destination: billerAccountId,
       transfer_group: `BILL_PAY_${senderId}_${Date.now()}`,
     });
 
-    const paymentRef = db.collection('payment').doc();
-    const transactionRef = db.collection('transactions').doc();
+    const topupRef = db.collection('topup').doc();
 
     await db.runTransaction(async (t) => {
       t.update(senderDocRef, {
         balance: admin.firestore.FieldValue.increment(-amountInt)
       });
 
-      t.set(paymentRef, {
-        nasabahUid: senderId,
+      t.set(topupRef, {
+        userId: senderId,
         amount: amountInt,
         type: 'bill-payment',
         status: 'completed',
         gateway: 'Stripe',
         gatewayChargeId: reverseTransfer.id,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      t.set(transactionRef, {
-        type: 'BILL_PAYMENT',
-        amount: amountInt,
-        currency: 'usd',
-        senderId: senderId,
-        recipientUid: billerAccountId,
+        gatewayTransactionId: billerTransfer.id,
         billerAccountId: billerAccountId,
         accountNumber: accountNumber,
-        stripeDebitTransferId: reverseTransfer.id,
-        stripeCreditTransferId: billerTransfer.id,
-        status: 'COMPLETED',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        paymentId: paymentRef.id,
       });
     });
 
-    res.status(200).json({message:'Bill payment successful',transactionId: transactionRef.id});
+    res.status(200).json({message:'Bill payment successful',topupid: topupRef.id});
   } catch (error) {
     console.error('Error paying bill:', error);
+    res.status(500).json({error: error.message});
+  }
+});
+
+//get transaction history
+app.get('/api/transaction-history', authenticateFirebaseToken, async (req, res) => {
+  try {
+    const transactionMap = new Map();
+    const userId = req.user.uid;
+
+    const sentQuery = db.collection('transfer').where('senderId', '==', userId);
+    const receivedQuery = db.collection('transfer').where('recipientId', '==', userId);
+    const topupQuery = db.collection('topup').where('userId', '==', userId);
+
+    const [sentSnapshot, receivedSnapshot, topupSnapshot] = await Promise.all([
+      sentQuery.get(),
+      receivedQuery.get(),
+      topupQuery.get(),
+    ]);
+
+    sentSnapshot.forEach((doc) => transactionMap.set(doc.id, {id: doc.id, ...doc.data(), direction: 'SENT'}));
+    receivedSnapshot.forEach((doc) => transactionMap.set(doc.id, {id: doc.id, ...doc.data(), direction: 'RECEIVED'}));
+    topupSnapshot.forEach((doc) => {
+      transactionMap.set(doc.id, {id: doc.id, ...doc.data()});
+    });
+
+    const uniqueTransactions = Array.from(transactionMap.values());
+    uniqueTransactions.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+
+    res.status(200).json({transactions: uniqueTransactions});
+  } catch (error) {
+    console.error('Error fetching transaction history:', error);
     res.status(500).json({error: error.message});
   }
 });
@@ -723,11 +715,10 @@ app.delete('/api/delete-user-account', authenticateFirebaseToken, async (req, re
 
     const stripe = new Stripe(STRIPE_SECRET_KEY.value());
     const userDocRef = db.collection('users').doc(userId);
-    const nasabahDocRef = db.collection('nasabah').doc(userId);
 
-    const nasabahDoc = await nasabahDocRef.get();
-    if (nasabahDoc.exists && nasabahDoc.data().stripeAccountId) {
-      const stripeAccountId = nasabahDoc.data().stripeAccountId;
+    const userDoc = await userDocRef.get();
+    if (userDoc.exists && userDoc.data().stripeAccountId) {
+      const stripeAccountId = userDoc.data().stripeAccountId;
 
       console.log(`Deleting Stripe account: ${stripeAccountId}`);
       await stripe.accounts.del(stripeAccountId);
@@ -735,7 +726,7 @@ app.delete('/api/delete-user-account', authenticateFirebaseToken, async (req, re
     }
 
     console.log(`Deleting Firestore document for user: ${userId}`);
-    await nasabahDocRef.delete();
+    await userDocRef.delete();
     console.log('Firestore document deleted successfully.');
 
     console.log(`Deleting Firestore document for user: ${userId}`);
@@ -763,9 +754,9 @@ app.post('/api/create-checkout-session', authenticateFirebaseToken, async (req, 
       return res.status(400).json({ error: 'Valid amount is required' });
     }
 
-    const nasabahDoc = await db.collection('nasabah').doc(userId).get();
-    const stripeAccountId = nasabahDoc.data()?.stripeAccountId;
-    if (!nasabahDoc.exists || !stripeAccountId) {
+    const userDoc = await db.collection('users').doc(userId).get();
+    const stripeAccountId = userDoc.data()?.stripeAccountId;
+    if (!userDoc.exists || !stripeAccountId) {
       return res.status(400).json({error: 'User does not have a Stripe account'});
     }
 
@@ -774,7 +765,7 @@ app.post('/api/create-checkout-session', authenticateFirebaseToken, async (req, 
       line_items: [
         {
           price_data: {
-            currency: 'usd',
+            currency: 'idr',
             product_data: {
               name: 'Top-up Wallet',
             },
@@ -784,13 +775,18 @@ app.post('/api/create-checkout-session', authenticateFirebaseToken, async (req, 
         },
       ],
       mode: 'payment',
-      success_url: 'cashit://checkout/success',
-      cancel_url: 'cashit://checkout/cancel',
+      success_url: 'https://api-cksvvgpqtq-uc.a.run.app/api/checkout-success',
+      cancel_url: 'https://api-cksvvgpqtq-uc.a.run.app/api/checkout-cancel',
       client_reference_id: userId,
       payment_intent_data: {
         transfer_data: {
           destination: stripeAccountId,
         },
+        metadata: {
+          userId: userId,
+          amount: amount,
+          currency: 'idr'
+        }
       },
     }
     );
@@ -822,18 +818,18 @@ app.post('/api/admin/delete-orphaned-account', async (req, res) => {
     const deletedStripeAccount = await stripe.accounts.del(stripeAccountId);
     console.log('Stripe account deleted successfully.');
 
-    const nasabahQuery = await db.collection('nasabah').where('stripeAccountId', '==', stripeAccountId).get();
+    const userQuery = await db.collection('users').where('stripeAccountId', '==', stripeAccountId).get();
 
     let firebaseUid = null;
 
-    if (nasabahQuery.empty) {
-      console.log('No matching nasabah document found. It might already be deleted.');
+    if (userQuery.empty) {
+      console.log('No matching user document found. It might already be deleted.');
     } else {
-      for (const doc of nasabahQuery.docs) {
+      for (const doc of userQuery.docs) {
         firebaseUid = doc.id; // Get the Firebase UID from the doc ID
-        console.log(`Found matching nasabah doc: ${firebaseUid}. Deleting...`);
+        console.log(`Found matching user doc: ${firebaseUid}. Deleting...`);
         await doc.ref.delete();
-        console.log('Nasabah document deleted.');
+        console.log('user document deleted.');
       }
     }
 
