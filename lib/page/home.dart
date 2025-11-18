@@ -147,7 +147,7 @@ Widget _buildMenuButton({
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
-      child: Container(
+      child: SizedBox(
         width: 60,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

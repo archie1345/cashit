@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class Registerform extends StatefulWidget{
+  const Registerform({super.key});
+
   @override
   State<Registerform> createState() => _RegisterformState();
 }

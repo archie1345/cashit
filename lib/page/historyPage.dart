@@ -376,7 +376,7 @@ class _HistoryPageState extends State<HistoryPage> {
                               ...transactionsForDay
                                   .map((tx) => _buildTransactionTile(
                                       tx as Map<String, dynamic>))
-                                  .toList(),
+                                  ,
                             ],
                           );
                         },

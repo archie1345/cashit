@@ -42,7 +42,7 @@ class _FormContainerWidgetState extends State<FormContainerWidget> {
   bool _obscureText = true;
 
   Future<void> _selectDate(BuildContext context) async {
-    FocusScope.of(context).requestFocus(new FocusNode());
+    FocusScope.of(context).requestFocus(FocusNode());
 
     final DateTime? picked = await showDatePicker(
       context: context,

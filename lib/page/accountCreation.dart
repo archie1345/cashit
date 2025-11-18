@@ -7,6 +7,8 @@ import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class Accountcreation extends StatefulWidget{
+  const Accountcreation({super.key});
+
   @override
   State<Accountcreation> createState() => _AccountcreationState();
 }
