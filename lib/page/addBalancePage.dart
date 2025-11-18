@@ -21,7 +21,7 @@ class Addbalancepage extends StatefulWidget {
 }
 
 class _AddbalancepageState extends State<Addbalancepage> {
-  final _amountController = TextEditingController(text: '100000');
+  final _amountController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
@@ -44,16 +44,16 @@ class _AddbalancepageState extends State<Addbalancepage> {
     });
 
     try {
-      final amount = int.parse(_amountController.text);
+      final amount = 10000;
       if (amount <= 0) {
         showToast(message: 'Please enter a valid amount');
         return;
       }
-      final ensureNoDecimal = amount*100;
+
       if (kIsWeb) {
-        await _handleWebCheckout(ensureNoDecimal);
+        await _handleWebCheckout(amount);
       } else {
-        await _handleMobileCheckout(ensureNoDecimal);
+        await _handleMobileCheckout(amount);
       }
     } catch (e) {
       if (mounted) {

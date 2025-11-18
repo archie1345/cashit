@@ -39,22 +39,7 @@
     }
   ],
   "firestore": {
-    "database": "(default)",
-    "indexes": [
-      {
-        "collectionGroup": "transactions",
-        "queryScope": "COLLECTION",
-        "fields": [
-          {
-            "fieldPath": "userId",
-            "order": "ASCENDING"
-          },
-          {
-            "fieldPath": "timestamp",
-            "order": "DESCENDING"
-          }
-        ]
-      }
-    ]
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   }
 }

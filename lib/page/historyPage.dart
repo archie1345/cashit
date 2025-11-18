@@ -67,8 +67,10 @@ class _HistoryPageState extends State<HistoryPage> {
     final Map<DateTime, List<dynamic>> grouped = {};
 
     for (final tx in transactions) {
-      final String dateString = tx['createdAt'] as String;
-      final DateTime date = DateTime.parse(dateString);
+      final timestamp = tx['createdAt'];
+      final int seconds = timestamp['_seconds'];
+      final int nanoseconds = timestamp['_nanoseconds'];
+      final DateTime date = DateTime.fromMillisecondsSinceEpoch(seconds * 1000 + nanoseconds ~/ 1000000);
       final DateTime dayKey = DateTime(date.year, date.month, date.day);
 
       if (grouped[dayKey] == null) {
@@ -124,8 +126,10 @@ class _HistoryPageState extends State<HistoryPage> {
       }
     }
 
-    final String dateString = transaction['createdAt'] as String;
-    final DateTime date = DateTime.parse(dateString);
+    final timestamp = transaction['createdAt'];
+    final int seconds = timestamp['_seconds'];
+    final int nanoseconds = timestamp['_nanoseconds'];
+    final DateTime date = DateTime.fromMillisecondsSinceEpoch(seconds * 1000 + nanoseconds ~/ 1000000);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = DateTime(now.year, now.month, now.day - 1);
