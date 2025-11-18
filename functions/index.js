@@ -769,7 +769,7 @@ app.post('/api/create-checkout-session', authenticateFirebaseToken, async (req, 
             product_data: {
               name: 'Top-up Wallet',
             },
-            unit_amount: amount,
+            unit_amount: amount*100,
           },
           quantity: 1,
         },
@@ -784,7 +784,7 @@ app.post('/api/create-checkout-session', authenticateFirebaseToken, async (req, 
         },
         metadata: {
           userId: userId,
-          amount: amount,
+          amount: amount*100,
           currency: 'idr'
         }
       },
