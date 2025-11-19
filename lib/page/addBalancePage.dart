@@ -43,7 +43,7 @@ class _AddbalancepageState extends State<Addbalancepage> {
     });
 
     try {
-      final amount = 10000;
+      final amount = int.parse(_amountController.text.trim());
       if (amount <= 0) {
         showToast(message: 'Please enter a valid amount');
         return;

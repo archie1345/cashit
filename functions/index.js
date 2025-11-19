@@ -784,7 +784,7 @@ app.post('/api/create-checkout-session', authenticateFirebaseToken, async (req, 
         },
         metadata: {
           userId: userId,
-          amount: amount*100,
+          amount: amount,
           currency: 'idr'
         }
       },

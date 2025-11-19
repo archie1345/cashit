@@ -228,7 +228,7 @@ void onUserLogin() async {
         if (onboardingUrl != null) {
           final uri = Uri.parse(onboardingUrl);
           if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, webOnlyWindowName: '_self');
+            await launchUrl(uri, webOnlyWindowName: '_blank');
           }
         }
       } else {
