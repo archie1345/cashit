@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:cashit/backend/firebase_auth_service.dart';
 import 'package:cashit/classes/colors.dart';
-import 'package:cashit/page/successAddBalance.dart';
+import 'package:cashit/page/transactionStatus.dart';
 import 'package:cashit/widget/toast.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -129,14 +129,15 @@ class _AddbalancepageState extends State<Addbalancepage> {
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
         Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TopUpSuccessPage(
-                  amount: amount,
-                  transactionDate: DateTime.now(),
-                ),
-              ),
-            );
+          context,
+          MaterialPageRoute(
+            builder: (_) => TransactionstatusPage( 
+              isSuccess: true,
+              amount: amount,
+              transactionDate: DateTime.now(),
+            ),
+          ),
+        );
           }
         }
       });
@@ -235,14 +236,15 @@ class _AddbalancepageState extends State<Addbalancepage> {
 
       if (mounted) {
         Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => TopUpSuccessPage(
-              amount: amount,
-              transactionDate: DateTime.now(),
-            ),
-          ),
-        );
+  context,
+  MaterialPageRoute(
+    builder: (_) => TransactionstatusPage( // Updated Name
+      isSuccess: true, // It's successful here
+      amount: amount,
+      transactionDate: DateTime.now(),
+    ),
+  ),
+);
       }
     } on StripeException catch (e) {
       if (e.error.code == FailureCode.Canceled) {

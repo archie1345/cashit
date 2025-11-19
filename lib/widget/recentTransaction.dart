@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'package:cashit/widget/transactionTileBuilder.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'package:rxdart/rxdart.dart';
 
 class RecentTransactions extends StatefulWidget {
@@ -40,13 +40,15 @@ class _RecentTransactionsState extends State<RecentTransactions> {
       return Stream.value([]); // Return an empty stream if user is null
     }
 
+    // Query 1: Sent Transfers
     Stream<QuerySnapshot> sentStream = db
         .collection('transfer')
-        .where('senderId', isEqualTo: currentUserId) 
+        .where('senderId', isEqualTo: currentUserId)
         .orderBy('createdAt', descending: true)
         .limit(widget.limit)
         .snapshots();
 
+    // Query 2: Received Transfers
     Stream<QuerySnapshot> receivedStream = db
         .collection('transfer')
         .where('recipientId', isEqualTo: currentUserId)
@@ -54,6 +56,7 @@ class _RecentTransactionsState extends State<RecentTransactions> {
         .limit(widget.limit)
         .snapshots();
 
+    // Query 3: Topups
     Stream<QuerySnapshot> topupStream = db
         .collection('topup')
         .where('userId', isEqualTo: currentUserId)
@@ -76,6 +79,8 @@ class _RecentTransactionsState extends State<RecentTransactions> {
         final Map<String, Map<String, dynamic>> uniqueDocs = {};
         for (var doc in allDocs) {
           uniqueDocs[doc.id] = doc.data() as Map<String, dynamic>;
+          // Add the ID to the map so we can display it in details
+          uniqueDocs[doc.id]!['id'] = doc.id;
         }
 
         final allTransactions = uniqueDocs.values.toList();
@@ -109,20 +114,20 @@ class _RecentTransactionsState extends State<RecentTransactions> {
         'amount': 20000,
         'senderId': currentUserId,
         'recipientUsername': 'Ahmad Ibrahim',
-        'createdAt': Timestamp.fromDate(now), // Use Timestamp
+        'createdAt': Timestamp.fromDate(now), 
       },
       {
         'type': 'TOP-UP',
         'amount': 200000,
         'userId': currentUserId,
-        'createdAt': Timestamp.fromDate(yesterday), // Use Timestamp
+        'createdAt': Timestamp.fromDate(yesterday), 
       },
       {
         'type': 'BILL_PAYMENT',
         'amount': 10000,
         'userId': currentUserId,
         'accountNumber': '...0451',
-        'createdAt': Timestamp.fromDate(yesterday), // Use Timestamp
+        'createdAt': Timestamp.fromDate(yesterday), 
       },
       {
         'type': 'P2P_TRANSFER',
@@ -130,17 +135,9 @@ class _RecentTransactionsState extends State<RecentTransactions> {
         'senderId': 'user-id-klarissa',
         'recipientId': currentUserId,
         'senderUsername': 'Klarissa',
-        'createdAt': Timestamp.fromDate(twoDaysAgo), // Use Timestamp
+        'createdAt': Timestamp.fromDate(twoDaysAgo), 
       },
     ];
-  }
-
-  String _formatCurrency(int amount) {
-    return NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    ).format(amount);
   }
 
   @override
@@ -183,7 +180,7 @@ class _RecentTransactionsState extends State<RecentTransactions> {
                   print("History Stream Error: ${snapshot.error}");
                   return Center(
                       child: Text('Error: ${snapshot.error}',
-                          style: TextStyle(color: Colors.red)));
+                          style: const TextStyle(color: Colors.red)));
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return Center(
@@ -205,101 +202,15 @@ class _RecentTransactionsState extends State<RecentTransactions> {
                   itemCount: recentTransactions.length,
                   itemBuilder: (context, index) {
                     final transaction =
-                        recentTransactions[index] as Map<String, dynamic>;
-                    return _buildRecentTransactionTile(transaction);
+                      recentTransactions[index] as Map<String, dynamic>;
+                    
+                    return TransactionTile(transaction: transaction);
                   },
                 );
               },
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildRecentTransactionTile(Map<String, dynamic> transaction) {
-    final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
-    final String type = transaction['type'].toString().toUpperCase();
-    final int amount = transaction['amount'] ?? 0;
-
-    String title = 'Unknown Transaction';
-    IconData iconData = Icons.person;
-    Color amountColor = Colors.black;
-    String amountDisplay = '';
-    String dateDisplay = '';
-
-    bool isSender = false;
-    if (type == 'P2P_TRANSFER') {
-      isSender = (transaction['senderId'] == currentUserId);
-    } else if (type == 'WITHDRAWAL' || type == 'BILL_PAYMENT') {
-      isSender = true;
-    } else if (type == 'TOP-UP') {
-      isSender = false;
-    }
-
-    final formattedAmount = _formatCurrency(amount);
-
-    if (isSender) {
-      amountDisplay = '- $formattedAmount';
-      amountColor = Colors.red[700]!;
-      if (type == 'P2P_TRANSFER') {
-        title = 'Sent to @${transaction['recipientUsername'] ?? 'User'}';
-        iconData = Icons.person_outline;
-      } else if (type == 'BILL_PAYMENT') {
-        title = 'Bill Payment (${transaction['accountNumber']})';
-        iconData = Icons.receipt_long_outlined;
-      } else {
-        title = 'Withdrawal';
-        iconData = Icons.account_balance_outlined;
-      }
-    } else {
-      amountDisplay = '+ $formattedAmount';
-      amountColor = Colors.green[700]!;
-      if (type == 'P2P_TRANSFER') {
-        title = 'Received from @${transaction['senderUsername'] ?? 'User'}';
-        iconData = Icons.person_outline;
-      } else {
-        title = 'Top-Up from Bank';
-        iconData = Icons.add_card_outlined;
-      }
-    }
-
-    final Timestamp timestamp = transaction['createdAt'] as Timestamp;
-    final DateTime date = timestamp.toDate();
-    
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = DateTime(now.year, now.month, now.day - 1);
-    final checkDate = DateTime(date.year, date.month, date.day);
-
-    if (checkDate == today) {
-      dateDisplay = 'Today';
-    } else if (checkDate == yesterday) {
-      dateDisplay = 'Yesterday';
-    } else {
-      dateDisplay = DateFormat('dd/MM').format(date);
-    }
-
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: Colors.grey[100],
-        child: Icon(iconData, color: Colors.black87),
-      ),
-      title: Text(
-        title,
-        style: GoogleFonts.poppins(fontWeight: FontWeight.w500, fontSize: 14),
-      ),
-      subtitle: Text(
-        dateDisplay,
-        style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
-      ),
-      trailing: Text(
-        amountDisplay,
-        style: GoogleFonts.poppins(
-          fontWeight: FontWeight.w600,
-          color: amountColor,
-          fontSize: 14,
-        ),
       ),
     );
   }

@@ -246,13 +246,11 @@ app.get('/api/get-platform-balance', authenticateFirebaseToken, async (req, res)
 app.post('/api/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const stripeSecret = await STRIPE_WEBHOOK_SECRET.value();
-
   let event;
 
   try {
     const stripeSecretKey = await STRIPE_SECRET_KEY.value();
     const stripe = new Stripe(stripeSecretKey);
-
     event = stripe.webhooks.constructEvent(req.rawBody, sig, stripeSecret);
   } catch (err) {
     console.error('Webhook signature verification failed.', err.message);
@@ -260,51 +258,68 @@ app.post('/api/webhook', async (req, res) => {
   }
 
   try {
-    switch (event.type) {
-    case 'payment_intent.succeeded': {
-      const paymentIntent = event.data.object;
+    const handleTransaction = async (paymentIntent, status, amountOverride = null) => {
       if (!paymentIntent.metadata || !paymentIntent.metadata.userId) {
-        console.warn('Webhook received payment_intent.succeeded with no userId in metadata. Skipping.');
-        return res.status(200).send('Webhook received but skipped: Missing metadata.');
+        console.warn('Skipping webhook: Missing metadata.');
+        return;
       }
-      const {userId, amount, currency} = paymentIntent.metadata;
-      const amountInt = parseInt(amount, 10);
 
-      console.log(`PaymentIntent for user ${userId} of amount ${amount} ${currency} succeeded.`);
+      const {userId, amount} = paymentIntent.metadata;
+      const amountInt = amountOverride !== null ? amountOverride : parseInt(amount, 10);
 
-      try {
-        const topupRef = db.collection('topup').doc();
-        const userRef = db.collection('users').doc(userId);
+      const topupRef = db.collection('topup').doc(paymentIntent.id);
+      const userRef = db.collection('users').doc(userId);
 
-        await db.runTransaction(async (t) => {
+      await db.runTransaction(async (t) => {
+        const doc = await t.get(topupRef);
+        if (doc.exists && doc.data().status === status) {
+          return;
+        }
+
+        if (status === 'completed') {
           t.update(userRef, {
             balance: admin.firestore.FieldValue.increment(amountInt)
-          });
+          }
+          );
+        }
 
-          t.set(topupRef, {
-            userId: userId,
-            amount: amountInt,
-            type: 'top-up',
-            status: 'completed',
-            gateway: 'Stripe',
-            gatewayTransactionId: paymentIntent.id,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-        });
+        const data = {
+          userId: userId,
+          amount: amountInt,
+          type: 'top-up',
+          status: status,
+          gateway: 'Stripe',
+          gatewayTransactionId: paymentIntent.id,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
 
-        console.log('Customer logged top-up and updated balance for user:', userId);
-      } catch (err) {
-        console.error('Error in top-up webhook transaction:', err);
-        return res.status(500).send(`Webhook Transaction Error: ${err.message}`);
+        if (status === 'failed' && paymentIntent.last_payment_error) {
+          data.failureReason = paymentIntent.last_payment_error.message;
+        }
+
+        t.set(topupRef, data, { merge: true });
       }
-      break;
-    }
+      );
+      console.log(`Processed top-up for ${userId}: ${status} (${amountInt})`);
+    };
 
-    case 'transfer.created': {
-      const transfer = event.data.object;
-      console.log(`A transfer was created: ${transfer.id}, Amount: ${transfer.amount}`);
+    switch (event.type) {
+    case 'payment_intent.succeeded':
+      await handleTransaction(event.data.object, 'completed');
       break;
-    }
+
+    case 'payment_intent.payment_failed':
+      await handleTransaction(event.data.object, 'failed');
+      break;
+
+    case 'payment_intent.canceled':
+      await handleTransaction(event.data.object, 'canceled');
+      break;
+
+    case 'transfer.created':
+      console.log(`Transfer created: ${event.data.object.id}`);
+      break;
+
     default:
       console.log(`Unhandled event type ${event.type}`);
     }

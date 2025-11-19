@@ -13,7 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:app_links/app_links.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cashit/page/successAddBalance.dart';
+import 'package:cashit/page/transactionStatus.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -81,25 +81,44 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
 
   void _handleDeepLink(Uri uri) async {
     debugPrint("Received deep link: $uri");
+    final prefs = await SharedPreferences.getInstance();
 
     if (uri.toString().contains('checkout/success')) {
-      
-      final prefs = await SharedPreferences.getInstance();
       final amount = prefs.getInt('pending_topup_amount');
 
       if (amount != null) {
         await prefs.remove('pending_topup_amount');
 
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => TopUpSuccessPage(
+            builder: (_) => TransactionstatusPage(
+              isSuccess: true,
               amount: amount,
               transactionDate: DateTime.now(),
             ),
           ),
         );
       }
+    }else if (uri.toString().contains('checkout/cancel')) {
+      final amount = prefs.getInt('pending_topup_amount') ?? 0;
+      await prefs.remove('pending_topup_amount');
+
+      if (!mounted) return;
+      
+      Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/home');
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TransactionstatusPage(
+            isSuccess: false,
+            amount: amount,
+            transactionDate: DateTime.now(),
+          ),
+        ),
+      );
     }
   }
 

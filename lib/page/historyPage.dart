@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cashit/widget/transactionTileBuilder.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -54,12 +54,24 @@ class _HistoryPageState extends State<HistoryPage> {
     }
   }
 
-  String _formatCurrency(int amount) {
-    return NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    ).format(amount);
+  // Robust date parsing for sorting
+  DateTime _parseDate(dynamic createdAt) {
+    if (createdAt == null) return DateTime.now();
+    try {
+      if (createdAt is Map && createdAt.containsKey('_seconds')) {
+        final int seconds = createdAt['_seconds'];
+        final int nanoseconds = createdAt['_nanoseconds'] ?? 0;
+        return DateTime.fromMillisecondsSinceEpoch(
+            seconds * 1000 + nanoseconds ~/ 1000000);
+      } else if (createdAt is String) {
+        return DateTime.parse(createdAt);
+      } else if (createdAt is int) {
+        return DateTime.fromMillisecondsSinceEpoch(createdAt);
+      }
+    } catch (e) {
+      // ignore error
+    }
+    return DateTime.now();
   }
 
   Map<DateTime, List<dynamic>> _groupTransactionsByDay(
@@ -67,10 +79,7 @@ class _HistoryPageState extends State<HistoryPage> {
     final Map<DateTime, List<dynamic>> grouped = {};
 
     for (final tx in transactions) {
-      final timestamp = tx['createdAt'];
-      final int seconds = timestamp['_seconds'];
-      final int nanoseconds = timestamp['_nanoseconds'];
-      final DateTime date = DateTime.fromMillisecondsSinceEpoch(seconds * 1000 + nanoseconds ~/ 1000000);
+      final DateTime date = _parseDate(tx['createdAt']);
       final DateTime dayKey = DateTime(date.year, date.month, date.day);
 
       if (grouped[dayKey] == null) {
@@ -79,109 +88,6 @@ class _HistoryPageState extends State<HistoryPage> {
       grouped[dayKey]!.add(tx);
     }
     return grouped;
-  }
-
-  Widget _buildTransactionTile(Map<String, dynamic> transaction) {
-    final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
-    final String type = transaction['type'].toString().toUpperCase();
-    final int amount = transaction['amount'] ?? 0;
-
-    String title = 'Unknown Transaction';
-    String amountDisplay = '';
-    IconData iconData = Icons.person_outline;
-    Color amountColor = Colors.black;
-    String dateDisplay = '';
-
-    bool isSender = false;
-    if (type == 'P2P_TRANSFER') {
-      isSender = (transaction['senderId'] == currentUserId);
-    } else if (type == 'WITHDRAWAL' || type == 'BILL_PAYMENT') {
-      isSender = true;
-    } else if (type == 'TOP-UP') {
-      isSender = false;
-    }
-
-    if (isSender) {
-      amountDisplay = '- ${_formatCurrency(amount)}';
-      amountColor = Colors.red[700]!;
-      if (type == 'P2P_TRANSFER') {
-        title = 'Sent to @${transaction['recipientUsername'] ?? 'User'}';
-        iconData = Icons.person_outline;
-      } else if (type == 'BILL_PAYMENT') {
-        title = 'Bill Payment (${transaction['accountNumber']})';
-        iconData = Icons.person_outline;
-      } else {
-        title = 'Withdrawal';
-        iconData = Icons.account_balance_outlined;
-      }
-    } else {
-      amountDisplay = '+ ${_formatCurrency(amount)}';
-      amountColor = Colors.green[700]!;
-      if (type == 'P2P_TRANSFER') {
-        title = 'Received from @${transaction['senderUsername'] ?? 'User'}';
-        iconData = Icons.person_outline;
-      } else {
-        title = 'Top-Up from Bank';
-        iconData = Icons.add_outlined;
-      }
-    }
-
-    final timestamp = transaction['createdAt'];
-    final int seconds = timestamp['_seconds'];
-    final int nanoseconds = timestamp['_nanoseconds'];
-    final DateTime date = DateTime.fromMillisecondsSinceEpoch(seconds * 1000 + nanoseconds ~/ 1000000);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = DateTime(now.year, now.month, now.day - 1);
-    final checkDate = DateTime(date.year, date.month, date.day);
-
-    if (checkDate == today) {
-      dateDisplay = 'Today';
-    } else if (checkDate == yesterday) {
-      dateDisplay = 'Yesterday';
-    } else {
-      dateDisplay = DateFormat('dd/MM').format(date);
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4.0),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [
-            pastelGreen.withOpacity(0.6),
-            pastelpurple.withOpacity(0.6),
-            pastelPink.withOpacity(0.6)
-          ],
-          stops: [0.1, 0.5, 1.0],
-        ),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.white.withOpacity(0.8),
-          child: Icon(iconData, color: Colors.black87),
-        ),
-        title: Text(
-          title,
-          style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w500, fontSize: 14, color: Colors.black87),
-        ),
-        subtitle: Text(
-          dateDisplay,
-          style: GoogleFonts.poppins(fontSize: 12, color: Colors.black54),
-        ),
-        trailing: Text(
-          amountDisplay,
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: amountColor,
-            fontSize: 14,
-          ),
-        ),
-      ),
-    );
   }
 
   List<dynamic> _applyFilter(List<dynamic> allTransactions) {
@@ -195,7 +101,6 @@ class _HistoryPageState extends State<HistoryPage> {
             .where((t) => t['type'] != 'P2P_TRANSFER')
             .toList();
       case FilterType.all:
-      default:
         return allTransactions;
     }
   }
@@ -211,7 +116,7 @@ class _HistoryPageState extends State<HistoryPage> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [pastelGreen, pastelpurple, pastelPink],
-                stops: [0.1, 0.5, 1.0],
+                stops: const [0.1, 0.5, 1.0],
               ),
             ),
           ),
@@ -237,7 +142,7 @@ class _HistoryPageState extends State<HistoryPage> {
                         BoxShadow(
                           color: Colors.black.withOpacity(0.1),
                           blurRadius: 10,
-                          offset: Offset(0, 5),
+                          offset: const Offset(0, 5),
                         )
                       ]),
                   child: Row(
@@ -373,10 +278,11 @@ class _HistoryPageState extends State<HistoryPage> {
                                   ),
                                 ),
                               ),
+                              // Use the new Reusable TransactionTile
                               ...transactionsForDay
-                                  .map((tx) => _buildTransactionTile(
-                                      tx as Map<String, dynamic>))
-                                  ,
+                                  .map((tx) => TransactionTile(
+                                      transaction: tx as Map<String, dynamic>))
+                                  .toList(),
                             ],
                           );
                         },
