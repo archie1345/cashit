@@ -41,9 +41,7 @@ class _HistoryPageState extends State<HistoryPage> {
     final idToken = await user.getIdToken(true);
     final response = await http.get(
       Uri.parse('$baseUrl/api/transaction-history'),
-      headers: {
-        'Authorization': 'Bearer $idToken',
-      },
+      headers: {'Authorization': 'Bearer $idToken'},
     );
 
     if (response.statusCode == 200) {
@@ -62,7 +60,8 @@ class _HistoryPageState extends State<HistoryPage> {
         final int seconds = createdAt['_seconds'];
         final int nanoseconds = createdAt['_nanoseconds'] ?? 0;
         return DateTime.fromMillisecondsSinceEpoch(
-            seconds * 1000 + nanoseconds ~/ 1000000);
+          seconds * 1000 + nanoseconds ~/ 1000000,
+        );
       } else if (createdAt is String) {
         return DateTime.parse(createdAt);
       } else if (createdAt is int) {
@@ -75,7 +74,8 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Map<DateTime, List<dynamic>> _groupTransactionsByDay(
-      List<dynamic> transactions) {
+    List<dynamic> transactions,
+  ) {
     final Map<DateTime, List<dynamic>> grouped = {};
 
     for (final tx in transactions) {
@@ -128,28 +128,31 @@ class _HistoryPageState extends State<HistoryPage> {
                   margin: const EdgeInsets.only(bottom: 16.0),
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          pastelGreen.withOpacity(0.8),
-                          pastelpurple.withOpacity(0.8),
-                        ],
+                    gradient: LinearGradient(
+                      colors: [
+                        pastelGreen.withOpacity(0.8),
+                        pastelpurple.withOpacity(0.8),
+                      ],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(30),
+                      bottomRight: Radius.circular(30),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
                       ),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(30),
-                        bottomRight: Radius.circular(30),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        )
-                      ]),
+                    ],
+                  ),
                   child: Row(
                     children: [
                       IconButton(
-                        icon:
-                            const Icon(Icons.arrow_back, color: Colors.black87),
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Colors.black87,
+                        ),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                       Expanded(
@@ -167,7 +170,7 @@ class _HistoryPageState extends State<HistoryPage> {
                     ],
                   ),
                 ),
-                
+
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: SegmentedButton<FilterType>(
@@ -228,29 +231,35 @@ class _HistoryPageState extends State<HistoryPage> {
                           child: Text(
                             'No transactions found.',
                             style: GoogleFonts.poppins(
-                                fontSize: 18, color: Colors.grey),
+                              fontSize: 18,
+                              color: Colors.grey,
+                            ),
                           ),
                         );
                       }
 
                       final allTransactions = snapshot.data!;
-                      final filteredTransactions =
-                          _applyFilter(allTransactions);
-                      
+                      final filteredTransactions = _applyFilter(
+                        allTransactions,
+                      );
+
                       if (filteredTransactions.isEmpty) {
-                         return Center(
+                        return Center(
                           child: Text(
                             'No transactions found for this filter.',
                             style: GoogleFonts.poppins(
-                                fontSize: 16, color: Colors.grey[700]),
+                              fontSize: 16,
+                              color: Colors.grey[700],
+                            ),
                           ),
                         );
                       }
 
-                      final groupedTransactions =
-                          _groupTransactionsByDay(filteredTransactions);
+                      final groupedTransactions = _groupTransactionsByDay(
+                        filteredTransactions,
+                      );
                       final sortedDates = groupedTransactions.keys.toList()
-                        ..sort((a, b) => b.compareTo(a)); 
+                        ..sort((a, b) => b.compareTo(a));
 
                       return ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -260,15 +269,19 @@ class _HistoryPageState extends State<HistoryPage> {
                           final transactionsForDay =
                               groupedTransactions[dateKey]!;
 
-                          final String dateHeader =
-                              DateFormat('EEEE, d MMM yyyy').format(dateKey);
+                          final String dateHeader = DateFormat(
+                            'EEEE, d MMM yyyy',
+                          ).format(dateKey);
 
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(
                                 padding: const EdgeInsets.only(
-                                    top: 16.0, bottom: 8.0, left: 8.0),
+                                  top: 16.0,
+                                  bottom: 8.0,
+                                  left: 8.0,
+                                ),
                                 child: Text(
                                   dateHeader,
                                   style: GoogleFonts.poppins(
@@ -280,8 +293,11 @@ class _HistoryPageState extends State<HistoryPage> {
                               ),
                               // Use the new Reusable TransactionTile
                               ...transactionsForDay
-                                  .map((tx) => TransactionTile(
-                                      transaction: tx as Map<String, dynamic>))
+                                  .map(
+                                    (tx) => TransactionTile(
+                                      transaction: tx as Map<String, dynamic>,
+                                    ),
+                                  )
                                   .toList(),
                             ],
                           );

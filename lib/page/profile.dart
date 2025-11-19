@@ -7,7 +7,13 @@ import 'package:cashit/backend/firebase_auth_service.dart';
 import 'package:cashit/widget/bottom_nav.dart';
 import 'package:cashit/page/home.dart';
 import 'package:cashit/page/transfers.dart';
-import 'package:cashit/page/notifications.dart';
+import 'package:cashit/page/pin.dart';
+import 'package:cashit/page/personalInformation.dart';
+import 'package:cashit/page/faceID.dart';
+import 'package:cashit/page/fingerprint.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -20,6 +26,9 @@ class _ProfilePageState extends State<ProfilePage> {
   final FirebaseAuthService _authService = FirebaseAuthService();
 
   User? _user;
+  bool _isSigningOut = false;
+  bool _isUploadingPhoto = false;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -39,6 +48,123 @@ class _ProfilePageState extends State<ProfilePage> {
   String _usernameHandle() {
     final display = _displayName();
     return '@' + display.replaceAll(' ', '').toLowerCase();
+  }
+
+  Future<void> _pickAndUploadPhoto() async {
+    if (_isUploadingPhoto) return;
+    try {
+      final XFile? picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        imageQuality: 80,
+      );
+      if (picked == null) return; // user cancelled
+
+      setState(() => _isUploadingPhoto = true);
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        showToast(message: 'No user signed in');
+        return;
+      }
+
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profile_photos')
+          .child('${user.uid}.jpg');
+
+      // On web, the plugin returns no usable local File path. Use putData instead.
+      TaskSnapshot snapshot;
+      if (kIsWeb) {
+        final bytes = await picked.readAsBytes();
+        final uploadTask = ref.putData(
+          bytes,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+        snapshot = await uploadTask;
+      } else {
+        final file = File(picked.path);
+        final uploadTask = ref.putFile(
+          file,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+        snapshot = await uploadTask;
+      }
+
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+
+      await user.updatePhotoURL(downloadUrl);
+      await user.reload();
+      _user = FirebaseAuth.instance.currentUser;
+      showToast(message: 'Profile photo updated');
+    } on FirebaseException catch (fe) {
+      debugPrint(
+        'FirebaseException during photo upload: ${fe.code} ${fe.message}',
+      );
+      showToast(message: 'Upload failed: ${fe.message ?? fe.code}');
+    } catch (e, st) {
+      debugPrint('Photo upload failed: $e');
+      debugPrintStack(stackTrace: st);
+      showToast(message: 'Failed to update profile photo: ${e.toString()}');
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
+    }
+  }
+
+  Future<void> _editDisplayName() async {
+    final controller = TextEditingController(text: _user?.displayName ?? '');
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit display name'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(hintText: 'Full name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null) return;
+    if (result.isEmpty) {
+      showToast(message: 'Name cannot be empty');
+      return;
+    }
+
+    try {
+      await _user?.updateDisplayName(result);
+      await FirebaseAuth.instance.currentUser?.reload();
+      _user = FirebaseAuth.instance.currentUser;
+      showToast(message: 'Display name updated');
+      setState(() {});
+    } catch (e) {
+      debugPrint('Failed to update displayName: $e');
+      showToast(message: 'Failed to update name');
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    if (_isSigningOut) return;
+    setState(() => _isSigningOut = true);
+    try {
+      await _authService.signOut();
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/login');
+    } catch (e) {
+      debugPrint('Logout failed: $e');
+      showToast(message: 'Failed to log out');
+    } finally {
+      if (mounted) setState(() => _isSigningOut = false);
+    }
   }
 
   Widget _buildTile({
@@ -69,26 +195,14 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(children: [tile, const Divider(height: 1)]);
   }
 
-  Future<void> _handleLogout() async {
-    try {
-      await _authService.signOut();
-      showToast(message: 'Signed out');
-      // Optionally navigate to login screen if your app has one:
-      // Navigator.pushReplacementNamed(context, '/login');
-    } catch (e) {
-      debugPrint('Logout failed: $e');
-      showToast(message: 'Failed to sign out');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
       bottomNavigationBar: BottomNavBar(
-        currentIndex: 3,
+        currentIndex: 2,
         onTap: (idx) {
-          if (idx == 3) return; // already on profile
+          if (idx == 2) return; // already on profile
           if (idx == 0)
             Navigator.pushReplacement(
               context,
@@ -98,11 +212,6 @@ class _ProfilePageState extends State<ProfilePage> {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const TransfersPage()),
-            );
-          if (idx == 2)
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const NotificationsPage()),
             );
         },
       ),
@@ -128,12 +237,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       bottomRight: Radius.circular(0),
                     ),
                   ),
-                  child: Align(
+                  child: const Align(
                     alignment: Alignment.topLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => Navigator.maybePop(context),
-                    ),
+                    child: SizedBox(width: 48),
                   ),
                 ),
 
@@ -167,10 +273,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             right: -4,
                             bottom: -4,
                             child: GestureDetector(
-                              onTap: () => showToast(
-                                message:
-                                    'Change profile photo (not implemented)',
-                              ),
+                              onTap: _pickAndUploadPhoto,
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Colors.white,
@@ -188,6 +291,25 @@ class _ProfilePageState extends State<ProfilePage> {
                               ),
                             ),
                           ),
+
+                          if (_isUploadingPhoto)
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.35),
+                                  borderRadius: BorderRadius.circular(44),
+                                ),
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 28,
+                                    height: 28,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -203,9 +325,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                           const SizedBox(width: 8),
                           GestureDetector(
-                            onTap: () => showToast(
-                              message: 'Edit profile (not implemented)',
-                            ),
+                            onTap: _editDisplayName,
                             child: const Icon(Icons.edit, size: 18),
                           ),
                         ],
@@ -238,24 +358,38 @@ class _ProfilePageState extends State<ProfilePage> {
                   _buildTile(
                     icon: Icons.lock_outline,
                     title: 'PIN',
-                    onTap: () => showToast(message: 'Open PIN settings'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PinPage()),
+                    ),
                   ),
                   _buildTile(
                     icon: Icons.badge_outlined,
                     title: 'Personal Information',
-                    onTap: () =>
-                        showToast(message: 'Open personal information'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PersonalInformationPage(),
+                      ),
+                    ),
                   ),
                   _buildTile(
                     icon: Icons.face_rounded,
                     title: 'Face ID',
-                    highlighted: true,
-                    onTap: () => showToast(message: 'Configure Face ID'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const FaceIDPage()),
+                    ),
                   ),
                   _buildTile(
                     icon: Icons.fingerprint,
                     title: 'Fingerprint ID',
-                    onTap: () => showToast(message: 'Configure fingerprint ID'),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const FingerprintPage(),
+                      ),
+                    ),
                   ),
 
                   const SizedBox(height: 24),
@@ -271,7 +405,16 @@ class _ProfilePageState extends State<ProfilePage> {
                             'Log Out',
                             style: TextStyle(fontSize: 16.0),
                           ),
-                          onTap: _handleLogout,
+                          trailing: _isSigningOut
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : null,
+                          onTap: _isSigningOut ? null : _handleLogout,
                         ),
                         const Divider(height: 1),
                         const SizedBox(height: 40),

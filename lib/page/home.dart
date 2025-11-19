@@ -4,7 +4,6 @@ import 'package:cashit/widget/recentTransaction.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cashit/widget/bottom_nav.dart';
 import 'package:cashit/page/transfers.dart';
-import 'package:cashit/page/notifications.dart';
 import 'package:cashit/page/profile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -101,13 +100,15 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
           ),
         );
       }
-    }else if (uri.toString().contains('checkout/cancel')) {
+    } else if (uri.toString().contains('checkout/cancel')) {
       final amount = prefs.getInt('pending_topup_amount') ?? 0;
       await prefs.remove('pending_topup_amount');
 
       if (!mounted) return;
-      
-      Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/home');
+
+      Navigator.of(
+        context,
+      ).popUntil((route) => route.isFirst || route.settings.name == '/home');
 
       Navigator.push(
         context,
@@ -296,24 +297,26 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
                                             !snapshot.data!.exists) {
                                           return const Text(
                                             "Balance: N/A",
-                                            style: TextStyle(color: Colors.grey),
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                            ),
                                           );
                                         }
-        
+
                                         final data =
                                             snapshot.data!.data()
                                                 as Map<String, dynamic>;
                                         final balance = data['balance'] ?? 0;
-        
+
                                         final formattedBalance =
                                             NumberFormat.currency(
                                               locale: 'id_ID',
                                               symbol: 'Rp ',
                                               decimalDigits: 0,
                                             ).format(balance);
-        
+
                                         final hiddenBalance = 'Rp ••••••••';
-        
+
                                         return Row(
                                           children: [
                                             Text(
@@ -350,7 +353,9 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10.0,
+                            ),
                             child: ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 400),
                               child: Container(
@@ -448,12 +453,6 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
             );
           }
           if (idx == 2) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const NotificationsPage()),
-            );
-          }
-          if (idx == 3) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const ProfilePage()),

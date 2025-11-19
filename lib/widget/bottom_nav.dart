@@ -58,8 +58,7 @@ class BottomNavBar extends StatelessWidget {
           children: [
             _buildItem(icon: Icons.home_filled, index: 0),
             _buildItem(icon: Icons.swap_horiz, index: 1),
-            _buildItem(icon: Icons.notifications_none, index: 2),
-            _buildItem(icon: Icons.account_circle, index: 3),
+            _buildItem(icon: Icons.account_circle, index: 2),
           ],
         ),
       ),

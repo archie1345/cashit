@@ -29,6 +29,7 @@ dependencies:
   pinput: ^5.0.2
   rxdart: ^0.28.0
   shared_preferences: ^2.5.3
+  image_picker: ^0.8.7+5
 
 dev_dependencies:
   flutter_test:
