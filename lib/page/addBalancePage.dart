@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:cashit/backend/firebase_auth_service.dart';
 import 'package:cashit/classes/colors.dart';
 import 'package:cashit/page/successAddBalance.dart';
 import 'package:cashit/widget/toast.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -48,7 +50,7 @@ class _AddbalancepageState extends State<Addbalancepage> {
         showToast(message: 'Please enter a valid amount');
         return;
       }
-
+      
       if (kIsWeb) {
         await _handleWebCheckout(amount);
       } else {
@@ -69,26 +71,105 @@ class _AddbalancepageState extends State<Addbalancepage> {
 
   Future<void> _handleWebCheckout(int amount) async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final userDocSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final int initialBalance = userDocSnapshot.data()?['balance'] ?? 0;
+
       final clientSecret = await _createWebCheckoutSession(amount);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('pending_topup_amount', amount);
+
+      await launchUrl(Uri.parse(clientSecret),mode: LaunchMode.externalApplication);
       
-      await launchUrl(Uri.parse(clientSecret));
-      
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        barrierDismissible: false, // User cannot close it manually
+        builder: (BuildContext context) {
+          return const PopScope(
+            canPop: false, // Prevent back button
+            child: AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 20),
+                  Text("Waiting for payment completion..."),
+                  Text("Please complete payment in the new tab.", 
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+      StreamSubscription? listener;
+      listener = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((snapshot) {
+        
+      if (!snapshot.exists) return;
+
+      final newBalance = snapshot.data()?['balance'] ?? 0;
+
+      if (newBalance > initialBalance) {
+        listener?.cancel(); // Stop listening
+        
       if (mounted) {
-        Navigator.pop(context);
-      }
+        Navigator.of(context, rootNavigator: true).pop();
+        Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TopUpSuccessPage(
+                  amount: amount,
+                  transactionDate: DateTime.now(),
+                ),
+              ),
+            );
+          }
+        }
+      });
     } catch (e) {
       showToast(message: 'Error: ${e.toString()}');
+      if(mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<String> _createWebCheckoutSession(int amount) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      throw Exception('User not logged in.');
-    }
+    if (user == null) throw Exception('User not logged in.');
     final idToken = await user.getIdToken(true);
+
+    String successUrl;
+    String cancelUrl;
+
+    if (kIsWeb) {
+      successUrl = "$baseUrl/api/web-success"; 
+      cancelUrl = "$baseUrl/api/web-cancel";
+    } else {
+      successUrl = "$baseUrl/api/checkout-success";
+      cancelUrl = "$baseUrl/api/checkout-cancel";
+    }
+
+    final body = <String, dynamic>{
+      'amount': amount,
+      'platform': kIsWeb ? 'web' : 'mobile',
+      'successUrl': successUrl,
+      'cancelUrl': cancelUrl,
+    };
 
     final response = await http.post(
       Uri.parse('$baseUrl/api/create-checkout-session'),
@@ -96,7 +177,7 @@ class _AddbalancepageState extends State<Addbalancepage> {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $idToken',
       },
-      body: jsonEncode({'amount': amount}),
+      body: jsonEncode(body),
     );
 
     if (response.statusCode == 200) {
@@ -104,16 +185,14 @@ class _AddbalancepageState extends State<Addbalancepage> {
       return data['checkoutUrl'];
     } else {
       final errorData = jsonDecode(response.body);
-      throw Exception(
-          'Failed to create checkout session: ${errorData['error']}');
+      throw Exception('Failed to create checkout session: ${errorData['error']}');
     }
   }
 
   Future<void> _handleMobileCheckout(int amount) async {
     try {
       final clientSecret = await _createMobilePaymentIntent(amount);
-
-      await _presentMobilePaymentSheet(clientSecret, amount);
+      await _presentPaymentSheet(clientSecret, amount);
     } catch (e) {
       rethrow;
     }
@@ -121,9 +200,7 @@ class _AddbalancepageState extends State<Addbalancepage> {
 
   Future<String> _createMobilePaymentIntent(int amount) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      throw Exception('User not logged in.');
-    }
+    if (user == null) throw Exception('User not logged in.');
     final idToken = await user.getIdToken(true);
 
     final response = await http.post(
@@ -144,7 +221,7 @@ class _AddbalancepageState extends State<Addbalancepage> {
     }
   }
 
-  Future<void> _presentMobilePaymentSheet(String clientSecret, int amount) async {
+  Future<void> _presentPaymentSheet(String clientSecret, int amount) async {
     try {
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(

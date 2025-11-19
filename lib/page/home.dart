@@ -45,6 +45,7 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
     }
     _appLinks = AppLinks();
     _handleIncomingLinks();
+    _checkInitialLink();
   }
 
   @override
@@ -53,6 +54,17 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
     _inactivityTimer?.cancel();
     _linkSubscription?.cancel();
     super.dispose();
+  }
+
+  Future<void> _checkInitialLink() async {
+    try {
+      final uri = await _appLinks.getInitialLink();
+      if (uri != null) {
+        _handleDeepLink(uri);
+      }
+    } catch (e) {
+      debugPrint('Error checking initial link: $e');
+    }
   }
 
   void _handleIncomingLinks() {
@@ -70,9 +82,8 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
   void _handleDeepLink(Uri uri) async {
     debugPrint("Received deep link: $uri");
 
-    if (uri.scheme == 'cashit' &&
-        uri.host == 'checkout' &&
-        uri.pathSegments.contains('success')) {
+    if (uri.toString().contains('checkout/success')) {
+      
       final prefs = await SharedPreferences.getInstance();
       final amount = prefs.getInt('pending_topup_amount');
 
@@ -175,272 +186,260 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home Page'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: _signOutAndNavigate,
-          ),
-          IconButton(
-            icon: Icon(Icons.adjust_rounded),
-            tooltip: 'test page',
-            onPressed: () {
-              Navigator.pushNamed(context, '/testingpage');
-            },
-          ),
-        ],
-      ),
-      body: Center(
-        child: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    ColorPalletes.pastelGreen,
-                    ColorPalletes.pastelpurple,
-                    ColorPalletes.pastelPink,
-                  ],
-                  stops: [0.3, 0.75, 1.0],
+      body: SafeArea(
+        child: Center(
+          child: Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      ColorPalletes.pastelGreen,
+                      ColorPalletes.pastelpurple,
+                      ColorPalletes.pastelPink,
+                    ],
+                    stops: [0.3, 0.75, 1.0],
+                  ),
                 ),
               ),
-            ),
-            SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: 400),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(10.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  SvgPicture.asset(
-                                    'assets/logo_text.svg',
-                                    width: 150,
-                                  ),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'Hello, ',
-                                        textAlign: TextAlign.left,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${FirebaseAuth.instance.currentUser?.displayName ?? 'User'}!',
-                                        textAlign: TextAlign.left,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 10.0,
-                                    ),
-                                    child: Text(
-                                      'Total Balance',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  ),
-                                  StreamBuilder<DocumentSnapshot>(
-                                    stream: _balanceStream,
-                                    builder: (context, snapshot) {
-                                      if (snapshot.connectionState ==
-                                          ConnectionState.waiting) {
-                                        return const CircularProgressIndicator();
-                                      }
-                                      if (snapshot.hasError) {
-                                        return const Text(
-                                          "Error loading balance",
-                                          style: TextStyle(color: Colors.red),
-                                        );
-                                      }
-                                      if (!snapshot.hasData ||
-                                          !snapshot.data!.exists) {
-                                        return const Text(
-                                          "Balance: N/A",
-                                          style: TextStyle(color: Colors.grey),
-                                        );
-                                      }
-
-                                      final data =
-                                          snapshot.data!.data()
-                                              as Map<String, dynamic>;
-                                      final balance = data['balance'] ?? 0;
-
-                                      final formattedBalance =
-                                          NumberFormat.currency(
-                                            locale: 'id_ID',
-                                            symbol: 'Rp ',
-                                            decimalDigits: 0,
-                                          ).format(balance);
-
-                                      final hiddenBalance = 'Rp ••••••••';
-
-                                      return Row(
-                                        children: [
-                                          Text(
-                                            _isBalanceVisible
-                                                ? formattedBalance
-                                                : hiddenBalance,
-                                            style: GoogleFonts.inter(
-                                              fontSize: 28,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                          IconButton(
-                                            icon: Icon(
-                                              _isBalanceVisible
-                                                  ? Icons.visibility_off
-                                                  : Icons.visibility,
-                                              color: Colors.grey[700],
-                                            ),
-                                            onPressed: () {
-                                              setState(() {
-                                                _isBalanceVisible =
-                                                    !_isBalanceVisible;
-                                              });
-                                            },
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 400),
-                            child: Container(
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(20),
-                                ),
-                                color: Colors.white,
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(10.0),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
+              SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: 400),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(10.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildMenuButton(
-                                      label: 'Add \nbalance',
-                                      svgPath: 'assets/add_Balance.svg',
-                                      onTap: () {
-                                        // TODO: Navigate to your top-up page
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/add_balance',
-                                        );
-                                      },
+                                    SvgPicture.asset(
+                                      'assets/logo_text.svg',
+                                      width: 150,
                                     ),
-                                    _buildMenuButton(
-                                      label: 'Top Up',
-                                      svgPath: 'assets/top-up.svg',
-                                      onTap: () {
-                                        // TODO: Navigate to your top-up page
-                                        // Navigator.pushNamed(context, '/topup');
-                                      },
+                                    Row(
+                                      children: [
+                                        Text(
+                                          'Hello, ',
+                                          textAlign: TextAlign.left,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${FirebaseAuth.instance.currentUser?.displayName ?? 'User'}!',
+                                          textAlign: TextAlign.left,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    _buildMenuButton(
-                                      label: 'Transfer',
-                                      svgPath: 'assets/transfer.svg',
-                                      onTap: () {
-                                        // TODO: Navigate to your transfer page
-                                        // Navigator.pushNamed(context, '/transfer');
-                                      },
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 10.0,
+                                      ),
+                                      child: Text(
+                                        'Total Balance',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black,
+                                        ),
+                                      ),
                                     ),
-                                    _buildMenuButton(
-                                      label: 'History',
-                                      svgPath: 'assets/history.svg',
-                                      onTap: () {
-                                        // TODO: Navigate to your history page
-                                        Navigator.pushNamed(
-                                          context,
-                                          '/history',
+                                    StreamBuilder<DocumentSnapshot>(
+                                      stream: _balanceStream,
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState ==
+                                            ConnectionState.waiting) {
+                                          return const CircularProgressIndicator();
+                                        }
+                                        if (snapshot.hasError) {
+                                          return const Text(
+                                            "Error loading balance",
+                                            style: TextStyle(color: Colors.red),
+                                          );
+                                        }
+                                        if (!snapshot.hasData ||
+                                            !snapshot.data!.exists) {
+                                          return const Text(
+                                            "Balance: N/A",
+                                            style: TextStyle(color: Colors.grey),
+                                          );
+                                        }
+        
+                                        final data =
+                                            snapshot.data!.data()
+                                                as Map<String, dynamic>;
+                                        final balance = data['balance'] ?? 0;
+        
+                                        final formattedBalance =
+                                            NumberFormat.currency(
+                                              locale: 'id_ID',
+                                              symbol: 'Rp ',
+                                              decimalDigits: 0,
+                                            ).format(balance);
+        
+                                        final hiddenBalance = 'Rp ••••••••';
+        
+                                        return Row(
+                                          children: [
+                                            Text(
+                                              _isBalanceVisible
+                                                  ? formattedBalance
+                                                  : hiddenBalance,
+                                              style: GoogleFonts.inter(
+                                                fontSize: 28,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.black,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: Icon(
+                                                _isBalanceVisible
+                                                    ? Icons.visibility_off
+                                                    : Icons.visibility,
+                                                color: Colors.grey[700],
+                                              ),
+                                              onPressed: () {
+                                                setState(() {
+                                                  _isBalanceVisible =
+                                                      !_isBalanceVisible;
+                                                });
+                                              },
+                                            ),
+                                          ],
                                         );
                                       },
                                     ),
                                   ],
                                 ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 400),
+                              child: Container(
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(20),
+                                  ),
+                                  color: Colors.white,
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(10.0),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      _buildMenuButton(
+                                        label: 'Add \nbalance',
+                                        svgPath: 'assets/add_Balance.svg',
+                                        onTap: () {
+                                          // TODO: Navigate to your top-up page
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/add_balance',
+                                          );
+                                        },
+                                      ),
+                                      _buildMenuButton(
+                                        label: 'Top Up',
+                                        svgPath: 'assets/top-up.svg',
+                                        onTap: () {
+                                          // TODO: Navigate to your top-up page
+                                          // Navigator.pushNamed(context, '/topup');
+                                        },
+                                      ),
+                                      _buildMenuButton(
+                                        label: 'Transfer',
+                                        svgPath: 'assets/transfer.svg',
+                                        onTap: () {
+                                          // TODO: Navigate to your transfer page
+                                          // Navigator.pushNamed(context, '/transfer');
+                                        },
+                                      ),
+                                      _buildMenuButton(
+                                        label: 'History',
+                                        svgPath: 'assets/history.svg',
+                                        onTap: () {
+                                          // TODO: Navigate to your history page
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/history',
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 20,
-                          ),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: 400,
-                              maxHeight: 400,
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 20,
                             ),
-                            child: RecentTransactions(
-                              limit: 4,
-                              useDummyData: false,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: 400,
+                                maxHeight: 400,
+                              ),
+                              child: RecentTransactions(
+                                limit: 4,
+                                useDummyData: false,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       bottomNavigationBar: BottomNavBar(
         currentIndex: 0,
         onTap: (idx) {
           if (idx == 0) return; // already on home
-          if (idx == 1)
+          if (idx == 1) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const TransfersPage()),
             );
-          if (idx == 2)
+          }
+          if (idx == 2) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const NotificationsPage()),
             );
-          if (idx == 3)
+          }
+          if (idx == 3) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const ProfilePage()),
             );
+          }
         },
       ),
     );

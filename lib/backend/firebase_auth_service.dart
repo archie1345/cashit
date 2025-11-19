@@ -228,7 +228,7 @@ void onUserLogin() async {
         if (onboardingUrl != null) {
           final uri = Uri.parse(onboardingUrl);
           if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, webOnlyWindowName: '_blank');
+            await launchUrl(uri, webOnlyWindowName: '_self');
           }
         }
       } else {
@@ -255,86 +255,3 @@ void _showPlatformToast({required String message}) {
     showToast(message: message);
   }
 }
-
-// Future<void> signInWithGoogle(BuildContext context) async {
-  
-//   try{
-//     if (Platform.isWindows) {
-//         throw UnimplementedError("Google Sign-In is not supported on Windows.");
-//      }
-//   } catch(e){
-//     _showPlatformToast(message: "Google Sign-In is not supported on this platform.");
-//     debugPrint('Google Sign-In Error: Unimplemented on this platform.');
-//     return;
-//   }
-
-//   try{
-//     final configUrl = Uri.parse('$baseUrl/api/config');
-//     final response = await http.get(configUrl);
-
-//     if (response.statusCode != 200) {
-//       _showPlatformToast(message: "Error connecting to server.");
-//       return;
-//     }
-//     final config = json.decode(response.body);
-//     final clientId = config['googleClientId'];
-
-//     if (clientId == null || clientId.isEmpty) {
-//       _showPlatformToast(message: "Server configuration error.");
-//       return;
-//     }
-//     await _googleSignIn.initialize(serverClientId: clientId);
-
-//     final GoogleSignInAccount user = await _googleSignIn.authenticate();
-
-//     final GoogleSignInClientAuthorization? authorization = await user.authorizationClient.authorizationForScopes(['email','profile']);
-
-//     final GoogleSignInAuthentication authentication = user.authentication;
-
-//     if (authorization == null) {
-//         _showPlatformToast(message: "failed to retrieve authorization tokens.");
-//         return;
-//       }
-
-//     final OAuthCredential credential = GoogleAuthProvider.credential(
-//       accessToken: authorization.accessToken,
-//       idToken: authentication.idToken,
-//     );
-//     final UserCredential userCredential = await _firebaseAuth.signInWithCredential(credential);
-
-//     final userData = userCredential.user;
-
-//     if (userData != null) {
-//       final userDoc = await _firestore.collection('users').doc(userData.uid).get();
-//       if (!userDoc.exists) {
-//           // This is a new user, so we save them to Firestore and onboard them
-//           print('New Google user detected. Onboarding to Stripe...');
-//           await _firestore.collection('users').doc(userData.uid).set({
-//             'username': userData.displayName ?? '',
-//             'email': userData.email ?? '',
-//             'uid': userData.uid,
-//             'createdAt': FieldValue.serverTimestamp(),
-//           });
-//           // Call the same onboarding function as the email signup.
-//           await _onboardUserToStripe(userData, userData.displayName ?? 'New User');
-//         }
-//       await createStripeCustomer(userData.uid);
-
-//       await _firestore.collection('users').doc(userData.uid).set({
-//         'username': userData.displayName ?? '',
-//         'email': userData.email ?? 'N/A',
-//         'uid': userData.uid,
-//         'createdAt': FieldValue.serverTimestamp(),
-//       }, SetOptions(merge: true));
-//     }
-
-//     _showPlatformToast(message: "Signed in succesfully");
-//     Navigator.pushReplacementNamed(context, "/home");
-//   } on FirebaseAuthException catch (e) {
-//       _showPlatformToast(message: "Firebase Auth Error: ${e.message}");
-//       debugPrint('Firebase Auth Error: $e');
-//     } catch (e) {
-//       debugPrint('Google Sign-In Error: $e');
-//       _showPlatformToast(message: "An unexpected error occurred during Google Sign-In.");
-//   }
-// }

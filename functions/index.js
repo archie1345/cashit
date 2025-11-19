@@ -21,6 +21,43 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const app = express();
 
+const htmlAutoCloseResponse = (title, message) => `
+  <html>
+    <head>
+      <title>${title}</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f4f4f4; }
+        .container { background: white; padding: 30px; border-radius: 10px; display: inline-block; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        p { color: #666; }
+        button { background-color: #000; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 20px; }
+        button:hover { opacity: 0.8; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>${title}</h1>
+        <p>${message}</p>
+        <button onclick="window.close()">Close This Tab</button>
+      </div>
+
+      <script>
+        // 1. Try to close immediately
+        try { window.close(); } catch (e) {}
+        
+        // 2. Try the 'self' hack for Chrome
+        try { window.open('', '_self', ''); window.close(); } catch (e) {}
+
+        // 3. Retry after a short delay
+        setTimeout(function() {
+           try { window.close(); } catch (e) {}
+        }, 1000);
+      </script>
+    </body>
+  </html>
+`;
+
 app.use(cors({origin: true}));
 app.use('/api/webhook', express.raw({type: 'application/json'}));
 
@@ -43,8 +80,6 @@ const authenticateFirebaseToken = async (req, res, next) => {
   }
 };
 
-
-
 app.get('/api/config', (req, res) => {
   try {
     res.status(200).json({
@@ -60,27 +95,11 @@ app.get('/api/health', (req, res) => {
 });
 
 app.get('/api/web-success', (req, res) => {
-  res.status(200).send(`
-    <html>
-      <head><title>Success</title></head>
-      <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-        <h1>Action Complete!</h1>
-        <p>Your request was successful. You can now return to the app.</p>
-      </body>
-    </html>
-  `);
+  res.status(200).send(htmlAutoCloseResponse('Payment Processed', 'Please close this tab to continue.'));
 });
 
 app.get('/api/web-cancel', (req, res) => {
-  res.status(200).send(`
-    <html>
-      <head><title>Canceled</title></head>
-      <body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-        <h1>Action Canceled</h1>
-        <p>The process was canceled. You can try again from the app.</p>
-      </body>
-    </html>
-  `);
+  res.status(200).send(htmlAutoCloseResponse('Canceled', 'Payment canceled. You can close this tab.'));
 });
 
 app.get('/api/onboard-success', (req, res) => {
@@ -370,7 +389,7 @@ app.post('/api/create-top-up-intent', authenticateFirebaseToken, async (req, res
     console.log(`Creating top-up intent for UID=${userId}, amount=${amount}, destination=${destination}`);
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount,
+      amount: amount*100,
       currency: 'idr',
       automatic_payment_methods: {enabled: true, allow_redirects: 'never'},
       transfer_data: {
@@ -747,7 +766,7 @@ app.delete('/api/delete-user-account', authenticateFirebaseToken, async (req, re
 app.post('/api/create-checkout-session', authenticateFirebaseToken, async (req, res) => {
   try {
     const stripe = new Stripe(STRIPE_SECRET_KEY.value());
-    const { amount } = req.body;
+    const { amount, successUrl, cancelUrl } = req.body;
     const userId = req.user.uid;
 
     if (!amount || amount <= 0) {
@@ -759,6 +778,9 @@ app.post('/api/create-checkout-session', authenticateFirebaseToken, async (req, 
     if (!userDoc.exists || !stripeAccountId) {
       return res.status(400).json({error: 'User does not have a Stripe account'});
     }
+
+    const finalSuccessUrl = successUrl || 'https://api-cksvvgpqtq-uc.a.run.app/api/checkout-success';
+    const finalCancelUrl = cancelUrl || 'https://api-cksvvgpqtq-uc.a.run.app/api/checkout-cancel';
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -775,8 +797,8 @@ app.post('/api/create-checkout-session', authenticateFirebaseToken, async (req, 
         },
       ],
       mode: 'payment',
-      success_url: 'https://api-cksvvgpqtq-uc.a.run.app/api/checkout-success',
-      cancel_url: 'https://api-cksvvgpqtq-uc.a.run.app/api/checkout-cancel',
+      success_url: finalSuccessUrl,
+      cancel_url: finalCancelUrl,
       client_reference_id: userId,
       payment_intent_data: {
         transfer_data: {
