@@ -2,6 +2,10 @@ import 'dart:async';
 import 'package:cashit/classes/colors.dart';
 import 'package:cashit/widget/recentTransaction.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cashit/widget/bottom_nav.dart';
+import 'package:cashit/page/transfers.dart';
+import 'package:cashit/page/notifications.dart';
+import 'package:cashit/page/profile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -11,14 +15,14 @@ import 'package:app_links/app_links.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cashit/page/successAddBalance.dart';
 
-class Homepage extends StatefulWidget{
+class Homepage extends StatefulWidget {
   const Homepage({super.key});
 
   @override
   State<Homepage> createState() => _HomepageState();
 }
 
-class _HomepageState extends State<Homepage> with WidgetsBindingObserver{
+class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
   Timer? _inactivityTimer;
   late final AppLinks _appLinks;
   StreamSubscription<Uri>? _linkSubscription;
@@ -27,7 +31,6 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver{
   bool _isBalanceVisible = true;
   Stream<DocumentSnapshot>? _balanceStream;
 
-  
   @override
   void initState() {
     super.initState();
@@ -44,7 +47,6 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver{
     _handleIncomingLinks();
   }
 
-
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -54,22 +56,26 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver{
   }
 
   void _handleIncomingLinks() {
-    _linkSubscription = _appLinks.uriLinkStream.listen((Uri uri) {
-      if (!mounted) return;
-      _handleDeepLink(uri);
-    }, onError: (err) {
-      debugPrint('Got error listening to incoming links: $err');
-    });
+    _linkSubscription = _appLinks.uriLinkStream.listen(
+      (Uri uri) {
+        if (!mounted) return;
+        _handleDeepLink(uri);
+      },
+      onError: (err) {
+        debugPrint('Got error listening to incoming links: $err');
+      },
+    );
   }
 
-void _handleDeepLink(Uri uri) async {
+  void _handleDeepLink(Uri uri) async {
     debugPrint("Received deep link: $uri");
-    
-    if (uri.scheme == 'cashit' && uri.host == 'checkout' && uri.pathSegments.contains('success')) {
-      
+
+    if (uri.scheme == 'cashit' &&
+        uri.host == 'checkout' &&
+        uri.pathSegments.contains('success')) {
       final prefs = await SharedPreferences.getInstance();
       final amount = prefs.getInt('pending_topup_amount');
-      
+
       if (amount != null) {
         await prefs.remove('pending_topup_amount');
 
@@ -86,7 +92,7 @@ void _handleDeepLink(Uri uri) async {
     }
   }
 
-   Future<void> _signOutAndNavigate() async {
+  Future<void> _signOutAndNavigate() async {
     _inactivityTimer?.cancel();
 
     if (FirebaseAuth.instance.currentUser != null) {
@@ -94,11 +100,7 @@ void _handleDeepLink(Uri uri) async {
       print("User signed out.");
 
       if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/login',
-          (route) => false,
-        );
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
       }
     }
   }
@@ -139,7 +141,7 @@ void _handleDeepLink(Uri uri) async {
     }
   }
 
-Widget _buildMenuButton({
+  Widget _buildMenuButton({
     required String label,
     required String svgPath,
     required VoidCallback onTap,
@@ -163,7 +165,7 @@ Widget _buildMenuButton({
               style: GoogleFonts.poppins(fontSize: 12),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-            )
+            ),
           ],
         ),
       ),
@@ -187,7 +189,7 @@ Widget _buildMenuButton({
             onPressed: () {
               Navigator.pushNamed(context, '/testingpage');
             },
-          )
+          ),
         ],
       ),
       body: Center(
@@ -195,14 +197,18 @@ Widget _buildMenuButton({
           children: [
             Container(
               decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [ColorPalletes.pastelGreen, ColorPalletes.pastelpurple, ColorPalletes.pastelPink],
-                    stops: [0.3, 0.75, 1.0],
-                  ),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    ColorPalletes.pastelGreen,
+                    ColorPalletes.pastelpurple,
+                    ColorPalletes.pastelPink,
+                  ],
+                  stops: [0.3, 0.75, 1.0],
                 ),
               ),
+            ),
             SingleChildScrollView(
               scrollDirection: Axis.vertical,
               child: Row(
@@ -211,50 +217,55 @@ Widget _buildMenuButton({
                   ConstrainedBox(
                     constraints: BoxConstraints(maxWidth: 400),
                     child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SvgPicture.asset('assets/logo_text.svg', width: 150),
-                                Row(
-                                  children: [
-                                    Text( 
-                                      'Hello, ',
-                                      textAlign: TextAlign.left,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w800,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(10.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SvgPicture.asset(
+                                    'assets/logo_text.svg',
+                                    width: 150,
+                                  ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Hello, ',
+                                        textAlign: TextAlign.left,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w800,
+                                        ),
                                       ),
-                                    ),
-                                    Text( 
-                                      '${FirebaseAuth.instance.currentUser?.displayName ?? 'User'}!',
-                                      textAlign: TextAlign.left,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w500,
+                                      Text(
+                                        '${FirebaseAuth.instance.currentUser?.displayName ?? 'User'}!',
+                                        textAlign: TextAlign.left,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                       ),
+                                    ],
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10.0,
                                     ),
-                                  ],
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 10.0),
-                                  child: Text(
-                                    'Total Balance',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black,
+                                    child: Text(
+                                      'Total Balance',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                StreamBuilder<DocumentSnapshot>(
+                                  StreamBuilder<DocumentSnapshot>(
                                     stream: _balanceStream,
                                     builder: (context, snapshot) {
                                       if (snapshot.connectionState ==
@@ -262,26 +273,33 @@ Widget _buildMenuButton({
                                         return const CircularProgressIndicator();
                                       }
                                       if (snapshot.hasError) {
-                                        return const Text("Error loading balance",
-                                            style: TextStyle(color: Colors.red));
+                                        return const Text(
+                                          "Error loading balance",
+                                          style: TextStyle(color: Colors.red),
+                                        );
                                       }
-                                      if (!snapshot.hasData || !snapshot.data!.exists) {
-                                        return const Text("Balance: N/A",
-                                            style: TextStyle(color: Colors.grey));
+                                      if (!snapshot.hasData ||
+                                          !snapshot.data!.exists) {
+                                        return const Text(
+                                          "Balance: N/A",
+                                          style: TextStyle(color: Colors.grey),
+                                        );
                                       }
-                              
-                                      final data = snapshot.data!.data() as Map<String, dynamic>;
+
+                                      final data =
+                                          snapshot.data!.data()
+                                              as Map<String, dynamic>;
                                       final balance = data['balance'] ?? 0;
-                                      
+
                                       final formattedBalance =
-                                        NumberFormat.currency(
-                                        locale: 'id_ID',
-                                        symbol: 'Rp ',
-                                        decimalDigits: 0,
-                                      ).format(balance);
-                              
+                                          NumberFormat.currency(
+                                            locale: 'id_ID',
+                                            symbol: 'Rp ',
+                                            decimalDigits: 0,
+                                          ).format(balance);
+
                                       final hiddenBalance = 'Rp ••••••••';
-                              
+
                                       return Row(
                                         children: [
                                           Text(
@@ -303,44 +321,47 @@ Widget _buildMenuButton({
                                             ),
                                             onPressed: () {
                                               setState(() {
-                                                _isBalanceVisible = !_isBalanceVisible;
-                                              }
-                                            );
-                                          },
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                        child: ConstrainedBox(
-                            constraints: 
-                              const BoxConstraints(
-                                maxWidth: 400,
+                                                _isBalanceVisible =
+                                                    !_isBalanceVisible;
+                                              });
+                                            },
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
-                              child: Container(
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                borderRadius: BorderRadius.all(Radius.circular(20)),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 400),
+                            child: Container(
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(20),
+                                ),
                                 color: Colors.white,
                               ),
                               child: Padding(
                                 padding: const EdgeInsets.all(10.0),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
                                   children: [
                                     _buildMenuButton(
                                       label: 'Add \nbalance',
                                       svgPath: 'assets/add_Balance.svg',
                                       onTap: () {
                                         // TODO: Navigate to your top-up page
-                                        Navigator.pushNamed(context, '/add_balance');
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/add_balance',
+                                        );
                                       },
                                     ),
                                     _buildMenuButton(
@@ -364,8 +385,11 @@ Widget _buildMenuButton({
                                       svgPath: 'assets/history.svg',
                                       onTap: () {
                                         // TODO: Navigate to your history page
-                                        Navigator.pushNamed(context, '/history');
-                                      }
+                                        Navigator.pushNamed(
+                                          context,
+                                          '/history',
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
@@ -374,12 +398,19 @@ Widget _buildMenuButton({
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 20,
+                          ),
                           child: ConstrainedBox(
-                            constraints: BoxConstraints(maxWidth: 400, maxHeight: 400),
+                            constraints: BoxConstraints(
+                              maxWidth: 400,
+                              maxHeight: 400,
+                            ),
                             child: RecentTransactions(
                               limit: 4,
-                              useDummyData: false)
+                              useDummyData: false,
+                            ),
                           ),
                         ),
                       ],
@@ -388,8 +419,29 @@ Widget _buildMenuButton({
                 ],
               ),
             ),
-          ]
+          ],
         ),
+      ),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: 0,
+        onTap: (idx) {
+          if (idx == 0) return; // already on home
+          if (idx == 1)
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const TransfersPage()),
+            );
+          if (idx == 2)
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsPage()),
+            );
+          if (idx == 3)
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfilePage()),
+            );
+        },
       ),
     );
   }

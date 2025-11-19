@@ -8,7 +8,6 @@ import 'package:cashit/page/accountCreation.dart';
 import 'package:cashit/page/registrationForm.dart';
 import 'package:cashit/page/splashScreen.dart';
 import 'package:cashit/page/home.dart';
-import 'package:cashit/testing/testingPage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -24,30 +23,28 @@ Future<void> main() async {
     }
   };
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   bool isStripeSupported = false;
   if (kIsWeb) {
     isStripeSupported = true;
   } else {
-    try{
-      if(Platform.isAndroid || Platform.isIOS){
+    try {
+      if (Platform.isAndroid || Platform.isIOS) {
         isStripeSupported = true;
       }
-    }catch(e){
+    } catch (e) {
       isStripeSupported = false;
     }
   }
 
-  if(isStripeSupported){
-    Stripe.publishableKey = "pk_test_51SIQfcKB84pAaJ2EDDbGR9JLqbOPLi9dNP1SLiHn1PpjW1ZsZMfc4M9FYegYalQr0jRF5REYUiUDvdphCXADvrwT00cpg44yLb";
+  if (isStripeSupported) {
+    Stripe.publishableKey =
+        "pk_test_51SIQfcKB84pAaJ2EDDbGR9JLqbOPLi9dNP1SLiHn1PpjW1ZsZMfc4M9FYegYalQr0jRF5REYUiUDvdphCXADvrwT00cpg44yLb";
     if (!kIsWeb) {
       await Stripe.instance.applySettings();
     }
   }
-
 
   runApp(const MyApp());
 }
@@ -66,13 +63,11 @@ class MyApp extends StatelessWidget {
         '/register': (context) => const RegisterPage(),
         '/registerform': (context) => Registerform(),
         '/accountcreation': (context) => Accountcreation(),
-        '/create_pin':(context) => CreatePinPage(),
-        '/history':(context) => HistoryPage(),
-        '/add_balance':(context) => Addbalancepage(),
-        '/testingpage':(context) => TestingPage(),
-        // '/add_balance_success':(context) => 
-      }
+        '/create_pin': (context) => CreatePinPage(),
+        '/history': (context) => HistoryPage(),
+        '/add_balance': (context) => Addbalancepage(),
+        // '/add_balance_success':(context) =>
+      },
     );
   }
 }
-
