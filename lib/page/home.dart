@@ -310,12 +310,12 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
 
                                         final formattedBalance =
                                             NumberFormat.currency(
-                                              locale: 'id_ID',
-                                              symbol: 'Rp ',
-                                              decimalDigits: 0,
-                                            ).format(balance);
+                                              locale: 'en_US',
+                                              symbol: '\$',
+                                              decimalDigits: 2,
+                                            ).format(balance/100);
 
-                                        final hiddenBalance = 'Rp ••••••••';
+                                        final hiddenBalance = '\$ ••••••••';
 
                                         return Row(
                                           children: [
@@ -413,6 +413,23 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
                                     ],
                                   ),
                                 ),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.pushNamed(context, '/testing');
+                              },
+                              icon: const Icon(Icons.bug_report, size: 16),
+                              label: const Text("Go to Testing Page"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20)
+                                )
                               ),
                             ),
                           ),

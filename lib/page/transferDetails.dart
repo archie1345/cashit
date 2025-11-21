@@ -1,11 +1,18 @@
+import 'dart:convert';
+import 'package:cashit/backend/firebase_auth_service.dart';
+import 'package:cashit/classes/formatter.dart';
+import 'package:cashit/page/transactionStatus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 
 class TransferDetailsPage extends StatefulWidget {
-  final Map<String, String> recipient;
+  // Changed to dynamic to handle data from Firestore
+  final Map<String, dynamic> recipient;
 
-  const TransferDetailsPage({Key? key, required this.recipient})
-    : super(key: key);
+  const TransferDetailsPage({super.key, required this.recipient});
 
   @override
   State<TransferDetailsPage> createState() => _TransferDetailsPageState();
@@ -15,6 +22,7 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
   final _amountController = TextEditingController();
   final _messageController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -23,14 +31,118 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
     super.dispose();
   }
 
-  void _handleConfirmPayment() {
+  int _getCleanAmount(String value) {
+    String clean = value.replaceAll(RegExp(r'[^0-9]'), '');
+    return int.tryParse(clean) ?? 0;
+  }
+
+  Future<void> _handleConfirmPayment() async {
     if (_formKey.currentState!.validate()) {
-      // TODO: Process payment with amount and message
-      final amount = _amountController.text.trim();
-      final message = _messageController.text.trim();
-      debugPrint(
-        'Transfer to ${widget.recipient['name']}: Rp$amount, Message: $message',
+      
+      final pinController = TextEditingController();
+
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: Text('Enter PIN', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Please enter your 6-digit PIN to confirm transfer.', style: GoogleFonts.poppins(fontSize: 12)),
+              const SizedBox(height: 10),
+              TextField(
+                controller: pinController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  hintText: '******',
+                  counterText: "",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel", style: TextStyle(color: Colors.red)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+              onPressed: () {
+                Navigator.pop(context);
+                if (pinController.text.length == 6) {
+                  _processTransfer(pinController.text);
+                }
+              },
+              child: const Text("Confirm", style: TextStyle(color: Colors.white)),
+            )
+          ],
+        ),
       );
+    }
+  }
+
+  Future<void> _processTransfer(String pin) async {
+    setState(() => _isLoading = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception("User not logged in");
+
+      final idToken = await user.getIdToken();
+      final amount = _getCleanAmount(_amountController.text);
+      
+      final recipientUsername = widget.recipient['username']; 
+
+      if (recipientUsername == null) {
+        throw Exception("Recipient username is missing.");
+      }
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/initiate-transfer'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode({
+          'amount': amount,
+          'recipientUsername': recipientUsername,
+          'pin': pin,
+        }),
+      );
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TransactionstatusPage(
+                isSuccess: true,
+                amount: amount,
+                transactionDate: DateTime.now(),
+              ),
+            ),
+          );
+        }
+      } else {
+        throw Exception(responseData['error'] ?? 'Transfer failed');
+      }
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed: ${e.toString().replaceAll('Exception:', '')}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -41,7 +153,6 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header with gradient and back arrow
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(
@@ -89,7 +200,6 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 16.0),
-                    // Recipient section
                     Text(
                       'Recipient',
                       style: GoogleFonts.poppins(
@@ -104,21 +214,37 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
                         CircleAvatar(
                           radius: 32,
                           backgroundColor: Colors.grey.shade200,
+                          child: Text(
+                            (widget.recipient['name'] ?? 'U')[0].toString().toUpperCase(),
+                          ),
                         ),
                         const SizedBox(width: 16.0),
-                        Text(
-                          widget.recipient['name']!,
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.recipient['name'] ?? 'Unknown',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            Text(
+                              // Display username or ID for confirmation
+                              '@${widget.recipient['username'] ?? 'unknown'}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                     const SizedBox(height: 32.0),
 
-                    // Transfer details container
+                    // Form
                     Container(
                       padding: const EdgeInsets.all(20.0),
                       decoration: BoxDecoration(
@@ -133,7 +259,6 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Transfer Amount field
                             Text(
                               'Transfer Amount',
                               style: GoogleFonts.poppins(
@@ -146,8 +271,13 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
                             TextFormField(
                               controller: _amountController,
                               keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                CurrencyInputFormatter()
+                              ],
                               decoration: InputDecoration(
-                                hintText: 'Rp0',
+                                hintText: '\$0.00',
+                                prefixText: '',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -160,15 +290,13 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
                                 if (value == null || value.trim().isEmpty) {
                                   return 'Please enter an amount';
                                 }
-                                if (int.tryParse(value.trim()) == null) {
+                                if (_getCleanAmount(value) <= 0) {
                                   return 'Please enter a valid number';
                                 }
                                 return null;
                               },
                             ),
                             const SizedBox(height: 16.0),
-
-                            // Message field (optional)
                             Text(
                               'Message (Optional)',
                               style: GoogleFonts.poppins(
@@ -181,7 +309,7 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
                             TextFormField(
                               controller: _messageController,
                               decoration: InputDecoration(
-                                hintText: 'Send a message (optional)',
+                                hintText: 'Send a message',
                                 suffixIcon: const Icon(
                                   Icons.emoji_emotions_outlined,
                                 ),
@@ -204,13 +332,13 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
               ),
             ),
 
-            // Confirm Payment button
+            // Confirm Button
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _handleConfirmPayment,
+                  onPressed: _isLoading ? null : _handleConfirmPayment,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey.shade600,
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -218,14 +346,20 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: Text(
-                    'Confirm Payment',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : Text(
+                          'Confirm Payment',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
               ),
             ),

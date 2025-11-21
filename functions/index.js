@@ -203,7 +203,7 @@ app.get('/api/get-firestore-balance', authenticateFirebaseToken, async (req, res
     }
 
     const balance = userDoc.data()?.balance ?? 0;
-    res.status(200).json({balance: balance, currency: 'idr'});
+    res.status(200).json({balance: balance, currency: 'usd'});
   } catch (error) {
     console.error('Error fetching Firestore balance:', error);
     res.status(500).json({error: error.message});
@@ -245,11 +245,11 @@ app.get('/api/get-platform-balance', authenticateFirebaseToken, async (req, res)
 
 app.post('/api/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
-  const stripeSecret = await STRIPE_WEBHOOK_SECRET.value();
+  const stripeSecret = STRIPE_WEBHOOK_SECRET.value();
   let event;
 
   try {
-    const stripeSecretKey = await STRIPE_SECRET_KEY.value();
+    const stripeSecretKey = STRIPE_SECRET_KEY.value();
     const stripe = new Stripe(stripeSecretKey);
     event = stripe.webhooks.constructEvent(req.rawBody, sig, stripeSecret);
   } catch (err) {
@@ -258,62 +258,81 @@ app.post('/api/webhook', async (req, res) => {
   }
 
   try {
-    const handleTransaction = async (paymentIntent, status, amountOverride = null) => {
-      if (!paymentIntent.metadata || !paymentIntent.metadata.userId) {
+    const handleTransaction = async (paymentIntentId, status, metadata, amountOverride = null) => {
+      if (!paymentIntentId || typeof paymentIntentId !== 'string') {
+        console.log(`Skipping ${status} webhook: Invalid PaymentIntent ID (Received: ${paymentIntentId})`);
+        return;
+      }
+
+      if (!metadata && status !== 'expired') {
         console.warn('Skipping webhook: Missing metadata.');
         return;
       }
 
-      const {userId, amount} = paymentIntent.metadata;
-      const amountInt = amountOverride !== null ? amountOverride : parseInt(amount, 10);
+      console.log(`Handling ${status} for ${paymentIntentId}`);
 
-      const topupRef = db.collection('topup').doc(paymentIntent.id);
-      const userRef = db.collection('users').doc(userId);
+      const topupRef = db.collection('topup').doc(paymentIntentId);
 
       await db.runTransaction(async (t) => {
         const doc = await t.get(topupRef);
+
+        let userId = null;
+        let amountVal = 0;
+
+        if (metadata) {
+          userId = metadata.userId;
+          amountVal = amountOverride !== null ? amountOverride : parseInt(metadata.amount, 10);
+        }
+
         if (doc.exists && doc.data().status === status) {
           return;
         }
 
-        if (status === 'completed') {
+        if (status === 'completed' && userId) {
+          const userRef = db.collection('users').doc(userId);
           t.update(userRef, {
-            balance: admin.firestore.FieldValue.increment(amountInt)
-          }
-          );
+            balance: admin.firestore.FieldValue.increment(amountVal)
+          });
         }
 
-        const data = {
-          userId: userId,
-          amount: amountInt,
-          type: 'top-up',
+        const transactionData = {
           status: status,
-          gateway: 'Stripe',
-          gatewayTransactionId: paymentIntent.id,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          gatewayTransactionId: paymentIntentId,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         };
 
-        if (status === 'failed' && paymentIntent.last_payment_error) {
-          data.failureReason = paymentIntent.last_payment_error.message;
+        if (userId) {
+          transactionData.userId = userId;
+          transactionData.amount = amountVal;
+          transactionData.type = 'top-up';
+          transactionData.gateway = 'Stripe';
         }
 
-        t.set(topupRef, data, { merge: true });
-      }
-      );
-      console.log(`Processed top-up for ${userId}: ${status} (${amountInt})`);
+        if (!doc.exists) {
+          transactionData.createdAt = admin.firestore.FieldValue.serverTimestamp();
+        }
+
+        t.set(topupRef, transactionData, { merge: true });
+      });
+      console.log(`Processed transaction ${paymentIntentId}: ${status}`);
     };
+    const session = event.data.object;
 
     switch (event.type) {
     case 'payment_intent.succeeded':
-      await handleTransaction(event.data.object, 'completed');
+      await handleTransaction(event.data.object.id, 'completed', event.data.object.metadata);
       break;
 
     case 'payment_intent.payment_failed':
-      await handleTransaction(event.data.object, 'failed');
+      await handleTransaction(event.data.object.id, 'failed', event.data.object.metadata);
       break;
 
     case 'payment_intent.canceled':
-      await handleTransaction(event.data.object, 'canceled');
+      await handleTransaction(event.data.object.id, 'canceled', event.data.object.metadata);
+      break;
+
+    case 'checkout.session.expired':
+      await handleTransaction(session.payment_intent, 'expired', null);
       break;
 
     case 'transfer.created':
@@ -347,31 +366,39 @@ app.post('/api/onboard-user-account' ,authenticateFirebaseToken, async (req, res
     const normalizedUsername = username.toLowerCase();
     const usernameQuery = await db.collection('users').where('username', '==', normalizedUsername).get();
     if (!usernameQuery.empty) {
-      return res.status(400).json({error: 'Username is already taken'});
+      for (const doc of usernameQuery.docs) {
+        if (doc.id !== userId) {
+          return res.status(400).json({error: 'Username is already taken'});
+        }
+      }
     }
 
-    const account = await stripe.accounts.create({
-      type: 'express',
-      email: email,
-      business_profile: {
-        name: username,
-      },
-      capabilities: {
-        transfers: {requested: true},
-        card_payments: {requested: true},
-      },
-      metadata: {appUserId: userId},
-    });
+    const userDoc = await db.collection('users').doc(userId).get();
+    let stripeAccountId = userDoc.data()?.stripeAccountId;
+    if(!stripeAccountId){
+      const account = await stripe.accounts.create({
+        type: 'express',
+        email: email,
+        business_profile: {
+          name: username,
+        },
+        capabilities: {
+          transfers: {requested: true},
+          card_payments: {requested: true},
+        },
+        metadata: {appUserId: userId},
+      });
+      stripeAccountId = account.id;
 
-    // Save the Stripe customer ID to Firestore
-    await db.collection('users').doc(userId).update({
-      stripeAccountId: account.id,
-    }, {merge: true});
+      await db.collection('users').doc(userId).update({
+        stripeAccountId: account.id,
+      },{merge: true});
+    }
 
     const accountLink = await stripe.accountLinks.create({
-      account: account.id,
-      refresh_url: 'https://api-cksvvgpqtq-uc.a.run.app/api/redirect-refresh',
-      return_url: 'https://api-cksvvgpqtq-uc.a.run.app/api/redirect-success',
+      account: stripeAccountId,
+      refresh_url: 'https://api-cksvvgpqtq-uc.a.run.app/api/onboard-refresh',
+      return_url: 'https://api-cksvvgpqtq-uc.a.run.app/api/onboard-success',
       type: 'account_onboarding',
     });
 
@@ -404,13 +431,14 @@ app.post('/api/create-top-up-intent', authenticateFirebaseToken, async (req, res
     console.log(`Creating top-up intent for UID=${userId}, amount=${amount}, destination=${destination}`);
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount*100,
-      currency: 'idr',
+      // amount: amount*100,//for idr which sadly not supported
+      amount:amount,
+      currency: 'usd',
       automatic_payment_methods: {enabled: true, allow_redirects: 'never'},
       transfer_data: {
         destination: destination,
       },
-      metadata: {userId: userId, amount: amount, currency: 'idr'},
+      metadata: {userId: userId, amount: amount, currency: 'usd'},
     });
 
     res.status(200).json({clientSecret: paymentIntent.client_secret, paymentIntentId: paymentIntent.id});
@@ -428,11 +456,13 @@ app.post('/api/initiate-transfer', authenticateFirebaseToken, async (req, res) =
     const senderId = req.user.uid;
 
     if (!pin) {
+      console.error('[Transfer Error] Missing PIN');
       return res.status(400).json({ error: 'PIN is required for this transaction.' });
     }
 
     const amountInt = parseInt(amount, 10);
     if (!amountInt || amountInt <= 0 || !recipientUsername) {
+      console.error('[Transfer Error] Invalid amount or missing recipient');
       return res.status(400).json({error: 'valid amount and recipient username are required'});
     }
 
@@ -467,11 +497,13 @@ app.post('/api/initiate-transfer', authenticateFirebaseToken, async (req, res) =
 
     const recipientQuery = await db.collection('users').where('username', '==', normalizedUsername).get();
     if (recipientQuery.empty) {
+      console.error(`[Transfer Error] Recipient username '${recipientUsername}' not found in DB`);
       return res.status(400).json({error: 'Recipient not found'});
     }
 
     const recipientId = recipientQuery.docs[0].id;
     if (recipientId === senderId) {
+      console.error('[Transfer Error] Self-transfer attempted');
       return res.status(400).json({error: 'You cannot send money to yourself.'});
     }
 
@@ -479,6 +511,7 @@ app.post('/api/initiate-transfer', authenticateFirebaseToken, async (req, res) =
     const recipientDoc = await recipientDocRef.get();
     const recipientAccount = recipientDoc.data()?.stripeAccountId;
     if (!recipientDoc.exists || !recipientAccount) {
+      console.error('[Transfer Error] Recipient has no Stripe Account ID');
       return res.status(400).json({error: 'Receipent not found or does not have a Stripe customer ID'});
     }
 
@@ -486,8 +519,8 @@ app.post('/api/initiate-transfer', authenticateFirebaseToken, async (req, res) =
     const platformAccountId = platformAccount.id;
 
     const reverseTransfer = await stripe.transfers.create({
-      amount: amount,
-      currency: 'idr',
+      amount: amountInt,
+      currency: 'usd',
       destination: platformAccountId,
       transfer_group: `P2P_${senderId}_${Date.now()}`,
     }, {
@@ -495,8 +528,8 @@ app.post('/api/initiate-transfer', authenticateFirebaseToken, async (req, res) =
     });
 
     const transfer = await stripe.transfers.create({
-      amount: amount,
-      currency: 'idr',
+      amount: amountInt,
+      currency: 'usd',
       destination: recipientAccount,
       transfer_group: `P2P_${senderId}_${Date.now()}`,
     });
@@ -513,9 +546,11 @@ app.post('/api/initiate-transfer', authenticateFirebaseToken, async (req, res) =
       t.set(transactionRef, {
         type: 'P2P_TRANSFER',
         amount: amountInt,
-        currency: 'idr',
+        currency: 'usd',
         senderId: senderId,
         recipientId: recipientId,
+        senderUsername: senderDoc.data()?.username,
+        recipientUsername: recipientUsername,
         stripeDebitTransferId: reverseTransfer.id,
         stripeCreditTransferId: transfer.id,
         status: 'COMPLETED',
@@ -577,7 +612,7 @@ app.post('/api/create-payout', authenticateFirebaseToken, async (req, res) => {
 
     const payout = await stripe.payouts.create({
       amount: amount,
-      currency: 'idr',
+      currency: 'usd',
     },{
       stripeAccount: stripeAccountId,
     });
@@ -659,7 +694,7 @@ app.post('/api/pay-bill',authenticateFirebaseToken, async (req, res) => {
 
     const reverseTransfer = await stripe.transfers.create({
       amount: amount,
-      currency: 'idr',
+      currency: 'usd',
       destination: platformAccountId,
       transfer_group: `BILL_PAY_${senderId}_${Date.now()}`,
       metadata: {
@@ -673,7 +708,7 @@ app.post('/api/pay-bill',authenticateFirebaseToken, async (req, res) => {
 
     const billerTransfer = await stripe.transfers.create({
       amount: amountInt,
-      currency: 'idr',
+      currency: 'usd',
       destination: billerAccountId,
       transfer_group: `BILL_PAY_${senderId}_${Date.now()}`,
     });
@@ -797,16 +832,19 @@ app.post('/api/create-checkout-session', authenticateFirebaseToken, async (req, 
     const finalSuccessUrl = successUrl || 'https://api-cksvvgpqtq-uc.a.run.app/api/checkout-success';
     const finalCancelUrl = cancelUrl || 'https://api-cksvvgpqtq-uc.a.run.app/api/checkout-cancel';
 
+    const expireTime = Math.floor(Date.now() / 1000) + (30 * 60);
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
-            currency: 'idr',
+            currency: 'usd',
             product_data: {
               name: 'Top-up Wallet',
             },
-            unit_amount: amount*100,
+            // unit_amount: amount*100,//supposed to be for idr but it was not supported :(
+            unit_amount: amount,
           },
           quantity: 1,
         },
@@ -814,6 +852,7 @@ app.post('/api/create-checkout-session', authenticateFirebaseToken, async (req, 
       mode: 'payment',
       success_url: finalSuccessUrl,
       cancel_url: finalCancelUrl,
+      expires_at: expireTime,
       client_reference_id: userId,
       payment_intent_data: {
         transfer_data: {
@@ -821,16 +860,45 @@ app.post('/api/create-checkout-session', authenticateFirebaseToken, async (req, 
         },
         metadata: {
           userId: userId,
-          amount: amount,
-          currency: 'idr'
+          amount: amount.toString(),
+          currency: 'usd'
         }
       },
     }
     );
+    if (session.payment_intent) {
+      await db.collection('topup').doc(session.payment_intent).set({
+        userId: userId,
+        amount: amount,
+        type: 'top-up',
+        status: 'pending',
+        gateway: 'Stripe',
+        gatewayTransactionId: session.payment_intent,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: admin.firestore.Timestamp.fromMillis(expireTime * 1000),
+      });
+      console.log(`Pending top-up created for ${userId}`);
+    } else {
+      console.warn('Session created without immediate PaymentIntent. Pending status skipped.');
+    }
 
     res.status(200).json({ checkoutUrl: session.url, paymentIntentId: session.payment_intent });
   } catch (error) {
     console.error('Error creating checkout session:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/check-username', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: 'Username required' });
+
+    const query = await db.collection('users').where('username', '==', username.toLowerCase()).limit(1).get();
+
+    res.status(200).json({ available: query.empty });
+  } catch (error) {
+    console.error('Check Username Error:', error);
     res.status(500).json({ error: error.message });
   }
 });

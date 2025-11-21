@@ -2,15 +2,18 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:cashit/backend/firebase_auth_service.dart';
 import 'package:cashit/classes/colors.dart';
+import 'package:cashit/classes/formatter.dart';
 import 'package:cashit/page/transactionStatus.dart';
 import 'package:cashit/widget/toast.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -26,18 +29,59 @@ class _AddbalancepageState extends State<Addbalancepage> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
+  bool _isAmountValid = false;
+  String? _helperText = "Enter amount to top up";
+  Color _helperColor = Colors.grey;
+
   static const pastelGreen = ColorPalletes.pastelGreen;
   static const pastelpurple = ColorPalletes.pastelpurple;
   static const pastelPink = ColorPalletes.pastelPink;
 
   @override
+  void initState() {
+    super.initState();
+    _amountController.addListener(_onAmountChanged);
+  }
+
+  @override
   void dispose() {
+    _amountController.removeListener(_onAmountChanged);
     _amountController.dispose();
     super.dispose();
   }
 
+  void _onAmountChanged() {
+    _validateAmount();
+  }
+
+  void _validateAmount() {
+    int cents = _getCleanAmount(_amountController.text);
+    
+    setState(() {
+      if (cents <= 0) {
+        _isAmountValid = false;
+        _helperText = "Enter amount";
+        _helperColor = Colors.grey;
+      } else if (cents < 50) { // Stripe minimum is usually 50 cents
+        _isAmountValid = false;
+        _helperText = "Minimum amount is \$0.50";
+        _helperColor = Colors.red;
+      } else {
+        _isAmountValid = true;
+        _helperText = "Amount valid";
+        _helperColor = Colors.green;
+      }
+    });
+  }
+
+  int _getCleanAmount(String value) {
+    // Remove non-digits ("1.000.000" -> "1000000")
+    String clean = value.replaceAll(RegExp(r'[^0-9]'), '');
+    return int.tryParse(clean) ?? 0;
+  }
+
   Future<void> _handleTopUp() async {
-    if (!(_formKey.currentState?.validate() ?? false)) {
+    if (!_isAmountValid) {
       return;
     }
     setState(() {
@@ -45,7 +89,7 @@ class _AddbalancepageState extends State<Addbalancepage> {
     });
 
     try {
-      final amount = int.parse(_amountController.text.trim());
+      final amount = _getCleanAmount(_amountController.text);
       if (amount <= 0) {
         showToast(message: 'Please enter a valid amount');
         return;
@@ -84,63 +128,81 @@ class _AddbalancepageState extends State<Addbalancepage> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('pending_topup_amount', amount);
 
-      await launchUrl(Uri.parse(clientSecret),mode: LaunchMode.externalApplication);
+      await launchUrl(Uri.parse(clientSecret), mode: LaunchMode.externalApplication);
       
       if (!mounted) return;
 
-      showDialog(
-        context: context,
-        barrierDismissible: false, // User cannot close it manually
-        builder: (BuildContext context) {
-          return const PopScope(
-            canPop: false, // Prevent back button
-            child: AlertDialog(
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 20),
-                  Text("Waiting for payment completion..."),
-                  Text("Please complete payment in the new tab.", 
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+      StreamSubscription? listener;
+      
+      void finishTransaction() {
+        listener?.cancel();
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TransactionstatusPage(
+                amount: amount,
+                transactionDate: DateTime.now(),
               ),
             ),
           );
-        },
-      );
+        }
+      }
 
-      StreamSubscription? listener;
       listener = FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .snapshots()
           .listen((snapshot) {
+        if (!snapshot.exists) return;
+        final newBalance = snapshot.data()?['balance'] ?? 0;
         
-      if (!snapshot.exists) return;
-
-      final newBalance = snapshot.data()?['balance'] ?? 0;
-
-      if (newBalance > initialBalance) {
-        listener?.cancel(); // Stop listening
-        
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => TransactionstatusPage( 
-              isSuccess: true,
-              amount: amount,
-              transactionDate: DateTime.now(),
-            ),
-          ),
-        );
-          }
+        if (newBalance > initialBalance) {
+          finishTransaction();
         }
       });
+
+      showDialog(
+        context: context,
+        barrierDismissible: false, 
+        builder: (BuildContext context) {
+          return PopScope(
+            canPop: false, 
+            child: AlertDialog(
+              title: Text("Processing Payment", style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 20),
+                  const Text("Please complete the payment in the browser."),
+                  const SizedBox(height: 10),
+                  Text(
+                    "If you closed the tab or canceled, click below.", 
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    listener?.cancel();
+                    Navigator.of(context, rootNavigator: true).pop();
+                    showToast(message: "Transaction processing stopped.");
+                  },
+                  child: Text(
+                    "I Canceled / Closed Tab",
+                    style: GoogleFonts.poppins(color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
     } catch (e) {
       showToast(message: 'Error: ${e.toString()}');
       if(mounted) {
@@ -286,20 +348,26 @@ class _AddbalancepageState extends State<Addbalancepage> {
                     TextFormField(
                       controller: _amountController,
                       keyboardType:
-                          const TextInputType.numberWithOptions(decimal: false),
+                        const TextInputType.numberWithOptions(decimal: false),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        CurrencyInputFormatter()
+                      ],
                       style: GoogleFonts.poppins(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
                       ),
                       decoration: InputDecoration(
-                        prefixText: 'Rp ',
-                        hintText: '0',
+                        prefixText: '',
+                        hintText: '\$0.00',
                         filled: true,
                         fillColor: Colors.grey[100],
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide.none,
                         ),
+                        helperText: _helperText,
+                        helperStyle: TextStyle(color: _helperColor,fontWeight: FontWeight.bold),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
@@ -350,7 +418,7 @@ class _AddbalancepageState extends State<Addbalancepage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  onPressed: _isLoading ? null : _handleTopUp,
+                  onPressed: (_isLoading || !_isAmountValid) ? null : _handleTopUp,
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : Text(

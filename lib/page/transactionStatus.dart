@@ -16,10 +16,10 @@ class TransactionstatusPage extends StatelessWidget {
 
   String _formatCurrency(int amount) {
     return NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'IDR ',
-      decimalDigits: 0,
-    ).format(amount);
+      locale: 'en_US',
+      symbol: '\$ ',
+      decimalDigits: 2,
+    ).format(amount/100);
   }
 
   String _formatDate(DateTime date) {

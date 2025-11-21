@@ -12,10 +12,10 @@ class TransactionTile extends StatelessWidget {
 
   String _formatCurrency(num amount) {
     return NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    ).format(amount);
+      locale: 'en_US',
+      symbol: '\$',
+      decimalDigits: 2,
+    ).format(amount/100);
   }
 
   // Robust date parser to handle API (Map/String) and Firestore (Timestamp)
@@ -48,13 +48,21 @@ class TransactionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final String currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
     final String type = (transaction['type'] ?? 'UNKNOWN').toString().toUpperCase();
+    final String status = (transaction['status'] ?? 'COMPLETED').toString().toUpperCase();
     final int amount = transaction['amount'] ?? 0;
 
     String title = 'Unknown Transaction';
     String amountDisplay = '';
     IconData iconData = Icons.person_outline;
     Color amountColor = Colors.black;
+    Color iconColor = Colors.black87;
     String dateDisplay = '';
+
+    bool isFailed = status == 'FAILED';
+    bool isCanceled = status == 'CANCELED';
+    bool isExpired = status == 'EXPIRED';
+    bool isPending = status == 'PENDING';
+    bool isSuccess = status == 'COMPLETED' || status == 'SUCCESS';
 
     // Determine Sender/Receiver logic
     bool isSender = false;
@@ -82,7 +90,7 @@ class TransactionTile extends StatelessWidget {
       }
     } else {
       amountDisplay = '+ ${_formatCurrency(amount)}';
-      amountColor = Colors.green[700]!;
+      amountColor = isSuccess ? Colors.green[700]!:Colors.grey;
       if (type == 'P2P_TRANSFER') {
         title = 'Received from @${transaction['senderUsername'] ?? 'User'}';
         iconData = Icons.arrow_downward_rounded;
@@ -90,6 +98,27 @@ class TransactionTile extends StatelessWidget {
         title = 'Top-Up from Bank';
         iconData = Icons.add_card_rounded;
       }
+    }
+
+    if (isExpired) {
+      title = '$title (Expired)';
+      iconData = Icons.timer_off_outlined;
+      iconColor = Colors.grey;
+      amountColor = Colors.grey;
+    } else if (isCanceled) {
+      title = '$title (Canceled)';
+      iconData = Icons.cancel_outlined;
+      iconColor = Colors.redAccent;
+      amountColor = Colors.grey;
+    } else if (isFailed) {
+      title = '$title (Failed)';
+      iconData = Icons.error_outline;
+      iconColor = Colors.red;
+    } else if (isPending) {
+      title = '$title (Pending)';
+      iconData = Icons.hourglass_empty_rounded;
+      iconColor = Colors.orange;
+      amountColor = Colors.orange;
     }
 
     // Date Formatting Logic
@@ -126,7 +155,7 @@ class TransactionTile extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           leading: CircleAvatar(
             backgroundColor: Colors.white.withOpacity(0.8),
-            child: Icon(iconData, color: Colors.black87),
+            child: Icon(iconData, color: iconColor),
           ),
           title: Text(
             title,
@@ -143,6 +172,7 @@ class TransactionTile extends StatelessWidget {
               fontWeight: FontWeight.w700,
               color: amountColor,
               fontSize: 14,
+              decoration: (isExpired||isCanceled||isFailed||isPending) ? TextDecoration.lineThrough : null,
             ),
           ),
         ),

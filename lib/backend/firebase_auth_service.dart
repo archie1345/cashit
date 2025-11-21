@@ -209,6 +209,31 @@ void onUserLogin() async {
     debugPrint('FirebaseAuthException: ${e.code}, ${e.message}');
   }
 
+  Future<bool> isUsernameAvailable(String username) async {
+    if (username.isEmpty) return false;
+    
+    try {
+      final response = await http.post(
+        Uri.parse("$baseUrl/api/check-username"),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({"username": username}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['available'] ?? false;
+      }
+      
+      return false;
+    } catch (e) {
+      debugPrint("Error checking username API: $e");
+      return false;
+    }
+  }
+
+
   Future<void> _onboardUserToStripe(User user, String username) async {
     try {
       final idToken = await user.getIdToken(true);
@@ -228,7 +253,7 @@ void onUserLogin() async {
         if (onboardingUrl != null) {
           final uri = Uri.parse(onboardingUrl);
           if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, webOnlyWindowName: '_self');
+            await launchUrl(uri, webOnlyWindowName: '_blank');
           }
         }
       } else {
