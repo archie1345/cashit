@@ -406,23 +406,23 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
                               ),
                             ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.pushNamed(context, '/testing');
-                              },
-                              icon: const Icon(Icons.bug_report, size: 16),
-                              label: const Text("Go to Testing Page"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20)
-                                )
-                              ),
-                            ),
-                          ),
+                          // Padding(
+                          //   padding: const EdgeInsets.all(8.0),
+                          //   child: ElevatedButton.icon(
+                          //     onPressed: () {
+                          //       Navigator.pushNamed(context, '/testing');
+                          //     },
+                          //     icon: const Icon(Icons.bug_report, size: 16),
+                          //     label: const Text("Go to Testing Page"),
+                          //     style: ElevatedButton.styleFrom(
+                          //       backgroundColor: Colors.orange,
+                          //       foregroundColor: Colors.white,
+                          //       shape: RoundedRectangleBorder(
+                          //         borderRadius: BorderRadius.circular(20)
+                          //       )
+                          //     ),
+                          //   ),
+                          // ),
                           Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
