@@ -19,7 +19,6 @@ class _FaceIDPageState extends State<FaceIDPage> {
   }
 
   void _onSetTap() {
-    // simple effect: ripple handled by InkWell, show toast
     showToast(message: 'Set Face ID tapped');
   }
 
@@ -32,34 +31,41 @@ class _FaceIDPageState extends State<FaceIDPage> {
       constraints: const BoxConstraints(maxWidth: 500),
       child: Scaffold(
         backgroundColor: Colors.white,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: AppBar(
+            title: Text(
+              'Face ID',
+              style: GoogleFonts.poppins(
+                color: Colors.black87,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            centerTitle: true,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black87),
+              onPressed: () => Navigator.maybePop(context),
+            ),
+            flexibleSpace: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [pastelGreen, pastelPurple],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+              ),
+            ),
+          ),
+        ),
         body: SafeArea(
           child: Column(
             children: [
-              // Header
-              Container(
-                height: 120,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [pastelGreen, pastelPurple],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                  ),
-                ),
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () => Navigator.maybePop(context),
-                  ),
-                ),
-              ),
-
-              // Content
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -76,7 +82,6 @@ class _FaceIDPageState extends State<FaceIDPage> {
                           padding: const EdgeInsets.all(12.0),
                           child: Column(
                             children: [
-                              // Face ID row with switch
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
@@ -88,7 +93,6 @@ class _FaceIDPageState extends State<FaceIDPage> {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  // Custom switch look: use Switch with color customizations
                                   Switch(
                                     value: _enabled,
                                     onChanged: _toggleEnabled,
@@ -102,8 +106,6 @@ class _FaceIDPageState extends State<FaceIDPage> {
                                 ],
                               ),
                               const Divider(height: 24),
-
-                              // Set Face ID row
                               InkWell(
                                 onTap: _onSetTap,
                                 borderRadius: BorderRadius.circular(4),
@@ -132,10 +134,7 @@ class _FaceIDPageState extends State<FaceIDPage> {
                         ),
                       ),
                       const SizedBox(height: 18),
-
                       const Spacer(),
-
-                      // Confirm button
                       Padding(
                         padding: const EdgeInsets.only(bottom: 20.0),
                         child: SizedBox(
@@ -149,14 +148,15 @@ class _FaceIDPageState extends State<FaceIDPage> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.black,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(28),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Confirm',
-                              style: TextStyle(
+                              style: GoogleFonts.poppins(
                                 fontSize: 18,
                                 color: Colors.white,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),

@@ -12,7 +12,6 @@ import 'package:cashit/page/home.dart';
 import 'package:cashit/page/topUpMenu.dart';
 import 'package:cashit/page/transactionStatus.dart';
 import 'package:cashit/page/transfers.dart';
-import 'package:cashit/testing/testingPage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -71,12 +70,13 @@ class MyApp extends StatelessWidget {
         '/create_pin': (context) => CreatePinPage(),
         '/history': (context) => HistoryPage(),
         '/add_balance': (context) => Addbalancepage(),
-        '/testing':(context) => TestingPage(),
-        '/transfer' :(context) => const TransfersPage(),
-        '/profile' :(context) => const ProfilePage(),
-        '/topUpMenu':(context) => const TopUpMenuPage(),
-        '/transactionStatus':(context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+        '/transfer': (context) => const TransfersPage(),
+        '/profile': (context) => const ProfilePage(),
+        '/topUpMenu': (context) => const TopUpMenuPage(),
+        '/transactionStatus': (context) {
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>?;
           return TransactionstatusPage(
             amount: args?['amount'],
             type: args?['type'],
@@ -84,8 +84,8 @@ class MyApp extends StatelessWidget {
             transactionDate: args?['transactionDate'],
             serviceName: args?['serviceName'],
           );
-        }
-        
+        },
+
         // '/add_balance_success':(context) =>
       },
     );

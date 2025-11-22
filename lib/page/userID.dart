@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cashit/widget/toast.dart';
+import 'package:cashit/classes/colors.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class UserIDPage extends StatefulWidget {
   const UserIDPage({Key? key}) : super(key: key);
@@ -66,105 +68,138 @@ class _UserIDPageState extends State<UserIDPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.maybePop(context),
+    final pastelGreen = ColorPalletes.pastelGreen;
+    final pastelPurple = ColorPalletes.pastelpurple;
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 500),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: AppBar(
+            title: Text(
+              'User ID',
+              style: GoogleFonts.poppins(
+                color: Colors.black87,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            centerTitle: true,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black87),
+              onPressed: () => Navigator.maybePop(context),
+            ),
+            flexibleSpace: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [pastelGreen, pastelPurple],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+              ),
+            ),
+          ),
         ),
-        title: const Text('User ID'),
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black,
-      ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              const Text(
-                'Current User ID',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _currentController,
-                readOnly: true,
-                decoration: InputDecoration(
-                  hintText: 'Current User ID',
-                  filled: true,
-                  fillColor: const Color(0xFFF3F3F5),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Colors.black38,
-                      width: 1,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Colors.black54,
-                      width: 1,
-                    ),
-                  ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 18),
+                Text(
+                  'Current User ID',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'New User ID',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _newController,
-                decoration: InputDecoration(
-                  hintText: 'New User ID',
-                  filled: true,
-                  fillColor: const Color(0xFFF3F3F5),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Colors.black38,
-                      width: 1,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Colors.black54,
-                      width: 1,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Spacer(),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 20.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _saving ? null : _confirmChange,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _currentController,
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    hintText: 'Current User ID',
+                    filled: true,
+                    fillColor: const Color(0xFFF3F3F5),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.black38,
+                        width: 1,
                       ),
                     ),
-                    child: _saving
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            'Confirm',
-                            style: TextStyle(fontSize: 18, color: Colors.white),
-                          ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.black54,
+                        width: 1,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Text(
+                  'New User ID',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _newController,
+                  decoration: InputDecoration(
+                    hintText: 'New User ID',
+                    filled: true,
+                    fillColor: const Color(0xFFF3F3F5),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.black38,
+                        width: 1,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.black54,
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _saving ? null : _confirmChange,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _saving
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : Text(
+                              'Confirm',
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

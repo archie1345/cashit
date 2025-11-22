@@ -62,34 +62,41 @@ class _PinPageState extends State<PinPage> {
       constraints: const BoxConstraints(maxWidth: 500),
       child: Scaffold(
         backgroundColor: Colors.white,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(56),
+          child: AppBar(
+            title: Text(
+              'PIN',
+              style: GoogleFonts.poppins(
+                color: Colors.black87,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            centerTitle: true,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black87),
+              onPressed: () => Navigator.maybePop(context),
+            ),
+            flexibleSpace: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [pastelGreen, pastelPurple],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+              ),
+            ),
+          ),
+        ),
         body: SafeArea(
           child: Column(
             children: [
-              // Header gradient with back button
-              Container(
-                height: 120,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [pastelGreen, pastelPurple],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(20),
-                    bottomRight: Radius.circular(20),
-                  ),
-                ),
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () => Navigator.maybePop(context),
-                  ),
-                ),
-              ),
-
-              // Content card
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -209,18 +216,19 @@ class _PinPageState extends State<PinPage> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.black,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(28),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                               child: _isSaving
                                   ? const CircularProgressIndicator(
                                       color: Colors.white,
                                     )
-                                  : const Text(
+                                  : Text(
                                       'Confirm',
-                                      style: TextStyle(
+                                      style: GoogleFonts.poppins(
                                         fontSize: 18,
                                         color: Colors.white,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                             ),

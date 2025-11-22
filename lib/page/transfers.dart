@@ -7,6 +7,7 @@ import 'package:cashit/page/profile.dart';
 import 'package:cashit/page/addRecipient.dart';
 import 'package:cashit/page/transferDetails.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cashit/classes/colors.dart' as color;
 
 class TransfersPage extends StatefulWidget {
   const TransfersPage({Key? key}) : super(key: key);
@@ -20,13 +21,13 @@ class _TransfersPageState extends State<TransfersPage> {
   Map<String, dynamic>? _selectedRecipient;
 
   void _openAddRecipientPage() async {
-    // 1. Wait for data from Add Page
+    //Wait for data from Add Page
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(builder: (_) => const AddRecipientPage()),
     );
 
-    // 2. Save to Firestore
+    //Save to Firestore
     if (result != null) {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -43,52 +44,61 @@ class _TransfersPageState extends State<TransfersPage> {
   @override
   Widget build(BuildContext context) {
     void _onTap(int idx) {
-      if (idx == 0) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const Homepage()));
-      if (idx == 1) return; 
-      if (idx == 2) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ProfilePage()));
+      if (idx == 0)
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const Homepage()),
+        );
+      if (idx == 1) return;
+      if (idx == 2)
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const ProfilePage()),
+        );
     }
 
     final user = FirebaseAuth.instance.currentUser;
+    final pastelGreen = color.ColorPalletes.pastelGreen;
+    final pastelPurple = color.ColorPalletes.pastelpurple;
 
     return Scaffold(
       backgroundColor: Colors.white,
       bottomNavigationBar: BottomNavBar(currentIndex: 1, onTap: _onTap),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(56),
+        child: AppBar(
+          title: Text(
+            'Transfer',
+            style: GoogleFonts.poppins(
+              color: Colors.black87,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black87),
+            onPressed: () => _onTap(0),
+          ),
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [pastelGreen, pastelPurple],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+              ),
+            ),
+          ),
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            // Original Header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.green.shade200, Colors.purple.shade200],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.black87),
-                    onPressed: () => _onTap(0),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Transfer',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.black87),
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-            ),
-
             // Content
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
@@ -101,7 +111,7 @@ class _TransfersPageState extends State<TransfersPage> {
                   if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  
+
                   final recipients = snapshot.data!.docs;
 
                   return ListView(
@@ -111,7 +121,11 @@ class _TransfersPageState extends State<TransfersPage> {
                         padding: const EdgeInsets.only(top: 16.0, bottom: 12.0),
                         child: Text(
                           'Send to',
-                          style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
                         ),
                       ),
 
@@ -122,7 +136,10 @@ class _TransfersPageState extends State<TransfersPage> {
                           margin: const EdgeInsets.only(bottom: 12.0),
                           padding: const EdgeInsets.all(12.0),
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.green.shade400, width: 2),
+                            border: Border.all(
+                              color: Colors.green.shade400,
+                              width: 2,
+                            ),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -130,12 +147,20 @@ class _TransfersPageState extends State<TransfersPage> {
                               CircleAvatar(
                                 radius: 28,
                                 backgroundColor: Colors.green.shade100,
-                                child: Icon(Icons.add, color: Colors.green.shade400, size: 32),
+                                child: Icon(
+                                  Icons.add,
+                                  color: Colors.green.shade400,
+                                  size: 32,
+                                ),
                               ),
                               const SizedBox(width: 16.0),
                               Text(
                                 'Add New',
-                                style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black87),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
+                                ),
                               ),
                             ],
                           ),
@@ -145,8 +170,10 @@ class _TransfersPageState extends State<TransfersPage> {
                       // Recipients List from Firestore
                       ...recipients.map((doc) {
                         final data = doc.data() as Map<String, dynamic>;
-                        final isSelected = _selectedRecipient != null && _selectedRecipient!['uid'] == data['uid'];
-                        
+                        final isSelected =
+                            _selectedRecipient != null &&
+                            _selectedRecipient!['uid'] == data['uid'];
+
                         return GestureDetector(
                           onTap: () {
                             setState(() {
@@ -158,46 +185,64 @@ class _TransfersPageState extends State<TransfersPage> {
                             padding: const EdgeInsets.all(12.0),
                             decoration: BoxDecoration(
                               border: Border.all(
-                                color: isSelected ? Colors.blue.shade400 : Colors.grey.shade300,
+                                color: isSelected
+                                    ? Colors.blue.shade400
+                                    : Colors.grey.shade300,
                                 width: isSelected ? 2 : 1,
                               ),
                               borderRadius: BorderRadius.circular(12),
-                              color: isSelected ? Colors.blue.shade50 : Colors.transparent,
+                              color: isSelected
+                                  ? Colors.blue.shade50
+                                  : Colors.transparent,
                             ),
                             child: Row(
                               children: [
                                 CircleAvatar(
                                   radius: 28,
                                   backgroundColor: Colors.grey.shade200,
-                                  child: Text((data['name'] ?? 'U')[0].toUpperCase()),
+                                  child: Text(
+                                    (data['name'] ?? 'U')[0].toUpperCase(),
+                                  ),
                                 ),
                                 const SizedBox(width: 16.0),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         data['name'] ?? 'Unknown',
-                                        style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black87),
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.black87,
+                                        ),
                                       ),
                                       Text(
                                         '@${data['username']}',
-                                        style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                if (isSelected) Icon(Icons.check_circle, color: Colors.blue.shade400),
+                                if (isSelected)
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: Colors.blue.shade400,
+                                  ),
                               ],
                             ),
                           ),
                         );
                       }).toList(),
-                      
+
                       const SizedBox(height: 24.0),
                     ],
                   );
-                }
+                },
               ),
             ),
 
@@ -220,13 +265,21 @@ class _TransfersPageState extends State<TransfersPage> {
                         }
                       : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _selectedRecipient != null ? Colors.black : Colors.grey.shade400,
+                    backgroundColor: _selectedRecipient != null
+                        ? Colors.black
+                        : Colors.grey.shade400,
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: Text(
                     'Select Recipient',
-                    style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
