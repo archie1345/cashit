@@ -431,7 +431,7 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
                             child: ConstrainedBox(
                               constraints: BoxConstraints(
                                 maxWidth: 400,
-                                maxHeight: 400,
+                                maxHeight: 420,
                               ),
                               child: RecentTransactions(
                                 limit: 4,
