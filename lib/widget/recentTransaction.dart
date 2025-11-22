@@ -8,12 +8,10 @@ import 'package:rxdart/rxdart.dart';
 
 class RecentTransactions extends StatefulWidget {
   final int limit;
-  final bool useDummyData;
 
   const RecentTransactions({
     super.key,
     required this.limit,
-    this.useDummyData = false,
   });
 
   @override
@@ -31,10 +29,6 @@ class _RecentTransactionsState extends State<RecentTransactions> {
   }
 
   Stream<List<Map<String, dynamic>>> _fetchRealtimeHistory() {
-    if (widget.useDummyData) {
-      return _getDummyHistoryStream();
-    }
-    
     final db = FirebaseFirestore.instance;
     if (currentUserId == null) {
       return Stream.value([]); // Return an empty stream if user is null
@@ -94,50 +88,6 @@ class _RecentTransactionsState extends State<RecentTransactions> {
         return allTransactions;
       },
     );
-  }
-
-  Stream<List<Map<String, dynamic>>> _getDummyHistoryStream() async* {
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    final now = DateTime.now();
-    final yesterday = now.subtract(const Duration(days: 1));
-    final twoDaysAgo = now.subtract(const Duration(days: 2));
-    
-    if (currentUserId == null) {
-      yield [];
-      return;
-    }
-
-    yield [
-      {
-        'type': 'P2P_TRANSFER',
-        'amount': 20000,
-        'senderId': currentUserId,
-        'recipientUsername': 'Ahmad Ibrahim',
-        'createdAt': Timestamp.fromDate(now), 
-      },
-      {
-        'type': 'TOP-UP',
-        'amount': 200000,
-        'userId': currentUserId,
-        'createdAt': Timestamp.fromDate(yesterday), 
-      },
-      {
-        'type': 'BILL_PAYMENT',
-        'amount': 10000,
-        'userId': currentUserId,
-        'accountNumber': '...0451',
-        'createdAt': Timestamp.fromDate(yesterday), 
-      },
-      {
-        'type': 'P2P_TRANSFER',
-        'amount': 50000,
-        'senderId': 'user-id-klarissa',
-        'recipientId': currentUserId,
-        'senderUsername': 'Klarissa',
-        'createdAt': Timestamp.fromDate(twoDaysAgo), 
-      },
-    ];
   }
 
   @override

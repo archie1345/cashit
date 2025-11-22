@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+enum TransactionType { topUp, transfer }
 
 class TransactionstatusPage extends StatelessWidget {
   final int amount;
   final DateTime transactionDate;
-  final bool isSuccess; // Add this flag to control the UI
+  final bool isSuccess;
+  final TransactionType type;
+  final String? serviceName;
 
   const TransactionstatusPage({
     super.key,
     required this.amount,
     required this.transactionDate,
-    this.isSuccess = true, // Defaults to true for backward compatibility
+    required this.type,
+    this.isSuccess = true,
+    this.serviceName
   });
 
   String _formatCurrency(int amount) {
@@ -30,16 +35,25 @@ class TransactionstatusPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusColor = isSuccess ? Colors.green[400] : Colors.red[400];
     final statusIcon = isSuccess ? Icons.check_circle_outline : Icons.cancel_outlined;
-    final statusTitle = isSuccess ? 'Top up Succeeded!' : 'Top up Failed';
-    final statusMessage = isSuccess 
-        ? 'Debit Card' 
-        : 'Payment was canceled or failed.';
+    String statusTitle;
+    String statusMessage;
+
+    if (serviceName != null) {
+      statusTitle = isSuccess ? '$serviceName Paid!' : '$serviceName Failed';
+      statusMessage = isSuccess ? '$serviceName payment successful' : 'Could not pay bill.';
+    } else if (type == TransactionType.topUp) {
+      statusTitle = isSuccess ? 'Top up Succeeded!' : 'Top up Failed';
+      statusMessage = isSuccess ? 'Debit Card' : 'Payment was canceled or failed.';
+    } else {
+      statusTitle = isSuccess ? 'Transfer Sent!' : 'Transfer Failed';
+      statusMessage = isSuccess ? 'Funds sent successfully' : 'Transfer could not be completed.';
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.black), // Changed to close for better UX
+          icon: const Icon(Icons.close, color: Colors.black),
           onPressed: () => Navigator.pushNamedAndRemoveUntil(
             context,
             '/home',
@@ -103,7 +117,9 @@ class TransactionstatusPage extends StatelessWidget {
                   _formatDate(transactionDate),
                 ),
                 _buildDetailRow(
-                  isSuccess ? 'Payment Method' : 'Status',
+                  type == TransactionType.topUp 
+                    ? (isSuccess ? 'Payment Method' : 'Status')
+                    : 'Details', 
                   statusMessage,
                 ),
 
@@ -123,7 +139,11 @@ class TransactionstatusPage extends StatelessWidget {
                           ),
                         ),
                         onPressed: () {
-                          Navigator.pushReplacementNamed(context, '/add_balance');
+                          if (type == TransactionType.topUp) {
+                            Navigator.pushReplacementNamed(context, '/add_balance');
+                          } else {
+                            Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+                          }
                         },
                         child: Text(
                           'Try Again',

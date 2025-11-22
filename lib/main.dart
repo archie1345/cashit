@@ -3,11 +3,15 @@ import 'package:cashit/page/addBalancePage.dart';
 import 'package:cashit/page/createPin.dart';
 import 'package:cashit/page/historyPage.dart';
 import 'package:cashit/page/login.dart';
+import 'package:cashit/page/profile.dart';
 import 'package:cashit/page/register.dart';
 import 'package:cashit/page/accountCreation.dart';
 import 'package:cashit/page/registrationForm.dart';
 import 'package:cashit/page/splashScreen.dart';
 import 'package:cashit/page/home.dart';
+import 'package:cashit/page/topUpMenu.dart';
+import 'package:cashit/page/transactionStatus.dart';
+import 'package:cashit/page/transfers.dart';
 import 'package:cashit/testing/testingPage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -68,6 +72,20 @@ class MyApp extends StatelessWidget {
         '/history': (context) => HistoryPage(),
         '/add_balance': (context) => Addbalancepage(),
         '/testing':(context) => TestingPage(),
+        '/transfer' :(context) => const TransfersPage(),
+        '/profile' :(context) => const ProfilePage(),
+        '/topUpMenu':(context) => const TopUpMenuPage(),
+        '/transactionStatus':(context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          return TransactionstatusPage(
+            amount: args?['amount'],
+            type: args?['type'],
+            isSuccess: args?['isSuccess'],
+            transactionDate: args?['transactionDate'],
+            serviceName: args?['serviceName'],
+          );
+        }
+        
         // '/add_balance_success':(context) =>
       },
     );

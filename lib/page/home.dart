@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'package:cashit/classes/colors.dart';
+import 'package:cashit/page/transactionStatus.dart';
 import 'package:cashit/widget/recentTransaction.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cashit/widget/bottom_nav.dart';
-import 'package:cashit/page/transfers.dart';
-import 'package:cashit/page/profile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -12,7 +11,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:app_links/app_links.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cashit/page/transactionStatus.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -89,14 +87,14 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
         await prefs.remove('pending_topup_amount');
 
         if (!mounted) return;
-        Navigator.push(
+        Navigator.pushNamed(
           context,
-          MaterialPageRoute(
-            builder: (_) => TransactionstatusPage(
-              isSuccess: true,
-              amount: amount,
-              transactionDate: DateTime.now(),
-            ),
+          '/transactionStatus',
+          arguments: (
+            type: TransactionType.transfer,
+            isSuccess: true,
+            amount: amount,
+            transactionDate: DateTime.now(),
           ),
         );
       }
@@ -109,15 +107,14 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
       Navigator.of(
         context,
       ).popUntil((route) => route.isFirst || route.settings.name == '/home');
-
-      Navigator.push(
+      Navigator.pushNamed(
         context,
-        MaterialPageRoute(
-          builder: (_) => TransactionstatusPage(
-            isSuccess: false,
-            amount: amount,
-            transactionDate: DateTime.now(),
-          ),
+        '/transactionStatus',
+        arguments: (
+          type: TransactionType.transfer,
+          isSuccess: false,
+          amount: amount,
+          transactionDate: DateTime.now(),
         ),
       );
     }
@@ -376,7 +373,6 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
                                         label: 'Add \nbalance',
                                         svgPath: 'assets/add_Balance.svg',
                                         onTap: () {
-                                          // TODO: Navigate to your top-up page
                                           Navigator.pushNamed(
                                             context,
                                             '/add_balance',
@@ -387,27 +383,21 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
                                         label: 'Top Up',
                                         svgPath: 'assets/top-up.svg',
                                         onTap: () {
-                                          // TODO: Navigate to your top-up page
-                                          // Navigator.pushNamed(context, '/topup');
+                                          Navigator.pushNamed(context, '/topUpMenu');
                                         },
                                       ),
                                       _buildMenuButton(
                                         label: 'Transfer',
                                         svgPath: 'assets/transfer.svg',
                                         onTap: () {
-                                          // TODO: Navigate to your transfer page
-                                          // Navigator.pushNamed(context, '/transfer');
+                                          Navigator.pushNamed(context, '/transfer');
                                         },
                                       ),
                                       _buildMenuButton(
                                         label: 'History',
                                         svgPath: 'assets/history.svg',
                                         onTap: () {
-                                          // TODO: Navigate to your history page
-                                          Navigator.pushNamed(
-                                            context,
-                                            '/history',
-                                          );
+                                          Navigator.pushNamed(context, '/history',);
                                         },
                                       ),
                                     ],
@@ -445,7 +435,6 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
                               ),
                               child: RecentTransactions(
                                 limit: 4,
-                                useDummyData: false,
                               ),
                             ),
                           ),
@@ -464,16 +453,10 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
         onTap: (idx) {
           if (idx == 0) return; // already on home
           if (idx == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const TransfersPage()),
-            );
+            Navigator.pushReplacementNamed(context, '/transfers');
           }
           if (idx == 2) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ProfilePage()),
-            );
+            Navigator.pushReplacementNamed(context, '/profile');
           }
         },
       ),

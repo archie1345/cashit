@@ -121,6 +121,7 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
             context,
             MaterialPageRoute(
               builder: (_) => TransactionstatusPage(
+                type: TransactionType.transfer,
                 isSuccess: true,
                 amount: amount,
                 transactionDate: DateTime.now(),

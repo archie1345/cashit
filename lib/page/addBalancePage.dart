@@ -142,6 +142,7 @@ class _AddbalancepageState extends State<Addbalancepage> {
             context,
             MaterialPageRoute(
               builder: (_) => TransactionstatusPage(
+                type: TransactionType.transfer,
                 amount: amount,
                 transactionDate: DateTime.now(),
               ),
@@ -300,8 +301,9 @@ class _AddbalancepageState extends State<Addbalancepage> {
         Navigator.pushReplacement(
   context,
   MaterialPageRoute(
-    builder: (_) => TransactionstatusPage( // Updated Name
-      isSuccess: true, // It's successful here
+    builder: (_) => TransactionstatusPage(
+      type: TransactionType.transfer,
+      isSuccess: true,
       amount: amount,
       transactionDate: DateTime.now(),
     ),

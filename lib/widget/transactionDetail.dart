@@ -17,14 +17,13 @@ class TransactionDetailPage extends StatelessWidget {
   String _formatCurrency(num amount) {
     return NumberFormat.currency(
       locale: 'en_US',
-      symbol: '\$',
+      symbol: '\$ ',
       decimalDigits: 2,
-    ).format(amount/100);
+    ).format(amount / 100);
   }
 
   String _formatDate(dynamic date) {
     if (date == null) return 'Unknown Date';
-    
     DateTime dateTime;
     try {
       if (date is Timestamp) {
@@ -49,7 +48,7 @@ class TransactionDetailPage extends StatelessWidget {
     final int amount = transaction['amount'] ?? 0;
     final String status = (transaction['status'] ?? 'COMPLETED').toString().toUpperCase();
     
-    // --- UI Logic based on Transaction Type ---
+    // --- UI Logic ---
     String title = 'Transaction';
     IconData icon = Icons.receipt;
     Color color = Colors.black;
@@ -58,8 +57,6 @@ class TransactionDetailPage extends StatelessWidget {
     String counterPartyValue = '-';
 
     if (type == 'P2P_TRANSFER') {
-      // Check if we are the sender or receiver
-      // Note: Your API uses 'senderId', Firestore uses 'senderId'.
       if (transaction['senderId'] == currentUserId) {
         title = 'Transfer Sent';
         icon = Icons.arrow_outward_rounded;
@@ -89,12 +86,12 @@ class TransactionDetailPage extends StatelessWidget {
       isNegative = true;
       counterPartyLabel = 'Destination';
       counterPartyValue = 'Bank Account';
-    } else if (type == 'BILL_PAYMENT') {
+    } else if (type.contains('BILL')) { // Catches BILL_PAYMENT & BILL-PAYMENT
       title = 'Bill Payment';
       icon = Icons.receipt_long_rounded;
       color = Colors.red;
       isNegative = true;
-      counterPartyLabel = 'Biller Account';
+      counterPartyLabel = 'Account / ID';
       counterPartyValue = transaction['accountNumber'] ?? transaction['billerAccountId'] ?? '-';
     }
 
@@ -127,7 +124,6 @@ class TransactionDetailPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 10),
-            // --- Icon Circle ---
             Container(
               padding: const EdgeInsets.all(25),
               decoration: BoxDecoration(
@@ -146,7 +142,6 @@ class TransactionDetailPage extends StatelessWidget {
             
             const SizedBox(height: 24),
             
-            // --- Title & Amount ---
             Text(
               title,
               style: GoogleFonts.poppins(
@@ -167,7 +162,6 @@ class TransactionDetailPage extends StatelessWidget {
             
             const SizedBox(height: 12),
             
-            // --- Status Badge ---
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
@@ -186,7 +180,6 @@ class TransactionDetailPage extends StatelessWidget {
 
             const SizedBox(height: 40),
 
-            // --- Details Card ---
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
