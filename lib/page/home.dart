@@ -453,7 +453,7 @@ class _HomepageState extends State<Homepage> with WidgetsBindingObserver {
         onTap: (idx) {
           if (idx == 0) return; // already on home
           if (idx == 1) {
-            Navigator.pushReplacementNamed(context, '/transfers');
+            Navigator.pushReplacementNamed(context, '/transfer');
           }
           if (idx == 2) {
             Navigator.pushReplacementNamed(context, '/profile');
