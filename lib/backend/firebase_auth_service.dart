@@ -7,13 +7,13 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
-const String baseUrl = "https://api-cksvvgpqtq-uc.a.run.app";
 
+const String baseUrl = "https://api-cksvvgpqtq-uc.a.run.app";
 
 class FirebaseAuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   // Sign up a new user
   Future<User?> signUpWithEmailAndPassword(
     String email,
@@ -25,7 +25,7 @@ class FirebaseAuthService {
     String birthDate,
     String address,
     String reason,
-    ) async {
+  ) async {
     try {
       final credential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
@@ -73,7 +73,7 @@ class FirebaseAuthService {
     }
   }
 
-   // Create a new Stripe customer and save the ID to Firestore
+  // Create a new Stripe customer and save the ID to Firestore
   Future<void> createStripeCustomer(String userId) async {
     try {
       final currentUser = _firebaseAuth.currentUser;
@@ -84,7 +84,7 @@ class FirebaseAuthService {
 
       // Force refresh the token to ensure it's not stale
       final idToken = await currentUser.getIdToken(true);
-      
+
       final email = currentUser.email;
       final username = currentUser.displayName ?? currentUser.email;
 
@@ -94,10 +94,7 @@ class FirebaseAuthService {
           "Content-Type": "application/json",
           "Authorization": "Bearer $idToken",
         },
-        body: jsonEncode({
-          "email": email,
-          "username": username,
-        }),
+        body: jsonEncode({"email": email, "username": username}),
       );
 
       if (response.statusCode == 200) {
@@ -120,12 +117,13 @@ class FirebaseAuthService {
   }
 
   // Sign in an existing user with email and password.
-  Future<User?> signInWithEmailAndPassword(String email, String password) async {
+  Future<User?> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     try {
-      UserCredential credential = await _firebaseAuth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      UserCredential credential = await _firebaseAuth
+          .signInWithEmailAndPassword(email: email, password: password);
       return credential.user;
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
@@ -144,7 +142,33 @@ class FirebaseAuthService {
     return null;
   }
 
-Future<bool> createPin(String pin) async {
+  // Sends a password reset email to the specified email address
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+      _showPlatformToast(message: 'Password reset email sent successfully.');
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'invalid-email':
+          _showPlatformToast(message: 'The email address is not valid.');
+          throw Exception('The email address is not valid.');
+        case 'user-not-found':
+          _showPlatformToast(message: 'No user found with this email address.');
+          throw Exception('No user found with this email address.');
+        default:
+          _showPlatformToast(
+            message: 'Failed to send reset email. Please try again.',
+          );
+          throw Exception('Failed to send reset email. Please try again.');
+      }
+    } catch (e) {
+      debugPrint('Error sending password reset email: $e');
+      _showPlatformToast(message: 'An unexpected error occurred.');
+      throw Exception('An unexpected error occurred. Please try again.');
+    }
+  }
+
+  Future<bool> createPin(String pin) async {
     try {
       final user = _firebaseAuth.currentUser;
       if (user == null) {
@@ -173,12 +197,12 @@ Future<bool> createPin(String pin) async {
     }
   }
 
-void onUserLogin() async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user != null) {
-    await createStripeCustomer(user.uid);
+  void onUserLogin() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await createStripeCustomer(user.uid);
+    }
   }
-}
 
   Future<void> signOut() async {
     try {
@@ -211,13 +235,11 @@ void onUserLogin() async {
 
   Future<bool> isUsernameAvailable(String username) async {
     if (username.isEmpty) return false;
-    
+
     try {
       final response = await http.post(
         Uri.parse("$baseUrl/api/check-username"),
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: {"Content-Type": "application/json"},
         body: jsonEncode({"username": username}),
       );
 
@@ -225,7 +247,7 @@ void onUserLogin() async {
         final data = jsonDecode(response.body);
         return data['available'] ?? false;
       }
-      
+
       return false;
     } catch (e) {
       debugPrint("Error checking username API: $e");
@@ -233,11 +255,10 @@ void onUserLogin() async {
     }
   }
 
-
   Future<void> _onboardUserToStripe(User user, String username) async {
     try {
       final idToken = await user.getIdToken(true);
-      
+
       final response = await http.post(
         Uri.parse("$baseUrl/api/onboard-user-account"),
         headers: {

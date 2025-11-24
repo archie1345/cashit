@@ -12,6 +12,7 @@ import 'package:cashit/page/home.dart';
 import 'package:cashit/page/topUpMenu.dart';
 import 'package:cashit/page/transactionStatus.dart';
 import 'package:cashit/page/transfers.dart';
+import 'package:cashit/page/forgot_password.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -65,6 +66,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/home': (context) => const Homepage(),
         '/register': (context) => const RegisterPage(),
+        '/forgotpassword': (context) => const ForgotPasswordPage(),
         '/registerform': (context) => Registerform(),
         '/accountcreation': (context) => Accountcreation(),
         '/create_pin': (context) => CreatePinPage(),
