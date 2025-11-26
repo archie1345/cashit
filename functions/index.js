@@ -452,7 +452,7 @@ app.post('/api/create-top-up-intent', authenticateFirebaseToken, async (req, res
 app.post('/api/initiate-transfer', authenticateFirebaseToken, async (req, res) => {
   try {
     const stripe = new Stripe(STRIPE_SECRET_KEY.value());
-    const {amount, recipientUsername,pin} = req.body;
+    const {amount, recipientUsername, pin, message} = req.body;
     const senderId = req.user.uid;
 
     if (!pin) {
@@ -550,6 +550,7 @@ app.post('/api/initiate-transfer', authenticateFirebaseToken, async (req, res) =
         senderId: senderId,
         recipientId: recipientId,
         senderUsername: senderDoc.data()?.username,
+        message: message || '',
         recipientUsername: recipientUsername,
         stripeDebitTransferId: reverseTransfer.id,
         stripeCreditTransferId: transfer.id,

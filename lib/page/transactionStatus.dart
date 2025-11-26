@@ -9,6 +9,7 @@ class TransactionstatusPage extends StatelessWidget {
   final bool isSuccess;
   final TransactionType type;
   final String? serviceName;
+  final String? message;
 
   const TransactionstatusPage({
     super.key,
@@ -16,7 +17,8 @@ class TransactionstatusPage extends StatelessWidget {
     required this.transactionDate,
     required this.type,
     this.isSuccess = true,
-    this.serviceName
+    this.serviceName,
+    this.message
   });
 
   String _formatCurrency(int amount) {
@@ -116,6 +118,11 @@ class TransactionstatusPage extends StatelessWidget {
                   'Transaction Date',
                   _formatDate(transactionDate),
                 ),
+                if (message != null && message!.isNotEmpty)
+                  _buildDetailRow(
+                    'Message',
+                    message!,
+                  ),
                 _buildDetailRow(
                   type == TransactionType.topUp 
                     ? (isSuccess ? 'Payment Method' : 'Status')

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cashit/page/addBalancePage.dart';
 import 'package:cashit/page/createPin.dart';
+import 'package:cashit/page/enterPin.dart';
 import 'package:cashit/page/historyPage.dart';
 import 'package:cashit/page/login.dart';
 import 'package:cashit/page/profile.dart';
@@ -77,18 +78,18 @@ class MyApp extends StatelessWidget {
         '/topUpMenu': (context) => const TopUpMenuPage(),
         '/transactionStatus': (context) {
           final args =
-              ModalRoute.of(context)?.settings.arguments
-                  as Map<String, dynamic>?;
+            ModalRoute.of(context)?.settings.arguments
+              as Map<String, dynamic>?;
           return TransactionstatusPage(
             amount: args?['amount'],
             type: args?['type'],
             isSuccess: args?['isSuccess'],
             transactionDate: args?['transactionDate'],
             serviceName: args?['serviceName'],
+            message: args?['message'],
           );
         },
-
-        // '/add_balance_success':(context) =>
+        '/enterPin':(context) => const EnterPinPage(),
       },
     );
   }

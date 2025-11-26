@@ -9,8 +9,8 @@ import 'package:cashit/page/home.dart';
 import 'package:cashit/page/transfers.dart';
 import 'package:cashit/page/pin.dart';
 import 'package:cashit/page/personalInformation.dart';
-import 'package:cashit/page/faceID.dart';
-import 'package:cashit/page/fingerprint.dart';
+// import 'package:cashit/page/faceID.dart';
+// import 'package:cashit/page/fingerprint.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
@@ -373,24 +373,24 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
-                  _buildTile(
-                    icon: Icons.face_rounded,
-                    title: 'Face ID',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const FaceIDPage()),
-                    ),
-                  ),
-                  _buildTile(
-                    icon: Icons.fingerprint,
-                    title: 'Fingerprint ID',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const FingerprintPage(),
-                      ),
-                    ),
-                  ),
+                  // _buildTile(
+                  //   icon: Icons.face_rounded,
+                  //   title: 'Face ID',
+                  //   onTap: () => Navigator.push(
+                  //     context,
+                  //     MaterialPageRoute(builder: (_) => const FaceIDPage()),
+                  //   ),
+                  // ),
+                  // _buildTile(
+                  //   icon: Icons.fingerprint,
+                  //   title: 'Fingerprint ID',
+                  //   onTap: () => Navigator.push(
+                  //     context,
+                  //     MaterialPageRoute(
+                  //       builder: (_) => const FingerprintPage(),
+                  //     ),
+                  //   ),
+                  // ),
 
                   const SizedBox(height: 24),
 

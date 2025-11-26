@@ -24,10 +24,22 @@ class TransactionDetailPage extends StatelessWidget {
 
   String _formatDate(dynamic date) {
     if (date == null) return 'Unknown Date';
+    
     DateTime dateTime;
     try {
       if (date is Timestamp) {
         dateTime = date.toDate();
+      } else if (date is DateTime) {
+        dateTime = date;
+      } else if (date is Map) {
+        if (date.containsKey('_seconds')) {
+          final int seconds = date['_seconds'];
+          final int nanoseconds = date['_nanoseconds'] ?? 0;
+          dateTime = DateTime.fromMillisecondsSinceEpoch(
+              seconds * 1000 + nanoseconds ~/ 1000000);
+        } else {
+          return 'Unknown Date';
+        }
       } else if (date is String) {
         dateTime = DateTime.parse(date);
       } else if (date is int) {
@@ -198,6 +210,10 @@ class TransactionDetailPage extends StatelessWidget {
                   _buildDetailRow('Date', _formatDate(transaction['createdAt'])),
                   const Divider(height: 30),
                   _buildDetailRow(counterPartyLabel, counterPartyValue),
+                  if (transaction['message'] != null && transaction['message'].toString().isNotEmpty) ...[
+                    const Divider(height: 30),
+                    _buildDetailRow('Message', transaction['message']),
+                  ],
                   const Divider(height: 30),
                   _buildDetailRow(
                     'Transaction ID', 

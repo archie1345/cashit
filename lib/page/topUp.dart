@@ -53,49 +53,12 @@ class _TopUpPageState extends State<TopUpPage> {
 
   Future<void> _handleConfirmPayment() async {
     if (_formKey.currentState!.validate()) {
-      final pinController = TextEditingController();
+      
+      final result = await Navigator.pushNamed(context, '/enterPin');
 
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: Text('Enter PIN', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Enter 6-digit PIN to confirm ${widget.title} payment.', style: GoogleFonts.poppins(fontSize: 12)),
-              const SizedBox(height: 10),
-              TextField(
-                controller: pinController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  hintText: '******',
-                  counterText: "",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.red)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-              onPressed: () {
-                Navigator.pop(context);
-                if (pinController.text.length == 6) {
-                  _processPayment(pinController.text);
-                }
-              },
-              child: const Text("Confirm", style: TextStyle(color: Colors.white)),
-            )
-          ],
-        ),
-      );
+      if (result != null && result is String && result.isNotEmpty) {
+        _processPayment(result);
+      }
     }
   }
 

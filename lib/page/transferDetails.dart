@@ -38,50 +38,11 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
 
   Future<void> _handleConfirmPayment() async {
     if (_formKey.currentState!.validate()) {
-      
-      final pinController = TextEditingController();
+      final result = await Navigator.pushNamed(context, '/enterPin');
 
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: Text('Enter PIN', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Please enter your 6-digit PIN to confirm transfer.', style: GoogleFonts.poppins(fontSize: 12)),
-              const SizedBox(height: 10),
-              TextField(
-                controller: pinController,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  hintText: '******',
-                  counterText: "",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel", style: TextStyle(color: Colors.red)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-              onPressed: () {
-                Navigator.pop(context);
-                if (pinController.text.length == 6) {
-                  _processTransfer(pinController.text);
-                }
-              },
-              child: const Text("Confirm", style: TextStyle(color: Colors.white)),
-            )
-          ],
-        ),
-      );
+      if (result != null && result is String && result.isNotEmpty) {
+        _processTransfer(result);
+      }
     }
   }
 
@@ -93,7 +54,7 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
 
       final idToken = await user.getIdToken();
       final amount = _getCleanAmount(_amountController.text);
-      
+      final message = _messageController.text.trim();
       final recipientUsername = widget.recipient['username']; 
 
       if (recipientUsername == null) {
@@ -110,6 +71,7 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
           'amount': amount,
           'recipientUsername': recipientUsername,
           'pin': pin,
+          'message': message,
         }),
       );
 
@@ -117,16 +79,16 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
 
       if (response.statusCode == 200) {
         if (mounted) {
-          Navigator.pushReplacement(
+          Navigator.pushReplacementNamed(
             context,
-            MaterialPageRoute(
-              builder: (_) => TransactionstatusPage(
-                type: TransactionType.transfer,
-                isSuccess: true,
-                amount: amount,
-                transactionDate: DateTime.now(),
-              ),
-            ),
+            '/transactionStatus',
+            arguments:{
+                'type': TransactionType.transfer,
+                'isSuccess': true,
+                'amount': amount,
+                'transactionDate': DateTime.now(),
+                'message': message.isNotEmpty ? message : null,
+            },
           );
         }
       } else {
@@ -309,11 +271,12 @@ class _TransferDetailsPageState extends State<TransferDetailsPage> {
                             const SizedBox(height: 8.0),
                             TextFormField(
                               controller: _messageController,
+                              maxLength: 30,
                               decoration: InputDecoration(
-                                hintText: 'Send a message',
-                                suffixIcon: const Icon(
-                                  Icons.emoji_emotions_outlined,
-                                ),
+                                hintText: '30 character Max',
+                                // suffixIcon: const Icon(
+                                //   Icons.emoji_emotions_outlined,
+                                // ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
