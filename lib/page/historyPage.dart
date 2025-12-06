@@ -123,7 +123,7 @@ class _HistoryPageState extends State<HistoryPage> {
         case FilterType.transfer:
           return type == 'P2P_TRANSFER';
         case FilterType.topup:
-          return type == 'TOP-UP';
+          return type == 'TOP-UP' || type == 'BILL-PAYMENT';
         case FilterType.withdrawal:
           return type == 'WITHDRAWAL';
         case FilterType.electricity:
