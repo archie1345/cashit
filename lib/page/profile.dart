@@ -9,14 +9,15 @@ import 'package:cashit/page/home.dart';
 import 'package:cashit/page/transfers.dart';
 import 'package:cashit/page/pin.dart';
 import 'package:cashit/page/personalInformation.dart';
-// import 'package:cashit/page/faceID.dart';
-// import 'package:cashit/page/fingerprint.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:io';
+
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+// Removed cached_network_image to rely on standard Image.network with manual cache busting
+// This is often more reliable for profile pictures that change frequently during dev.
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({Key? key}) : super(key: key);
+  const ProfilePage({super.key});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -28,6 +29,11 @@ class _ProfilePageState extends State<ProfilePage> {
   User? _user;
   bool _isSigningOut = false;
   bool _isUploadingPhoto = false;
+  
+  // This timestamp acts as a unique key. When it changes, the Image widget 
+  // is destroyed and recreated, forcing a fresh network request.
+  int _lastUploadTimestamp = DateTime.now().millisecondsSinceEpoch;
+  
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -47,18 +53,20 @@ class _ProfilePageState extends State<ProfilePage> {
 
   String _usernameHandle() {
     final display = _displayName();
-    return '@' + display.replaceAll(' ', '').toLowerCase();
+    return '@${display.replaceAll(' ', '').toLowerCase()}';
   }
 
   Future<void> _pickAndUploadPhoto() async {
     if (_isUploadingPhoto) return;
     try {
+      // 1. Pick Image
       final XFile? picked = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 800,
-        imageQuality: 80,
+        maxWidth: 1024,
+        imageQuality: 90,
       );
-      if (picked == null) return; // user cancelled
+      
+      if (picked == null) return;
 
       setState(() => _isUploadingPhoto = true);
 
@@ -68,44 +76,85 @@ class _ProfilePageState extends State<ProfilePage> {
         return;
       }
 
+      // 2. Read Bytes
+      final Uint8List originalBytes = await picked.readAsBytes();
+      if (originalBytes.isEmpty) {
+        showToast(message: 'Error: Image is empty');
+        return;
+      }
+      
+      Uint8List uploadData = originalBytes;
+      String contentType = 'image/jpeg'; 
+      bool compressionSuccess = false;
+
+      // 3. Attempt Compression
+      final bool isSupportedPlatform = kIsWeb || 
+                                       defaultTargetPlatform == TargetPlatform.android || 
+                                       defaultTargetPlatform == TargetPlatform.iOS || 
+                                       defaultTargetPlatform == TargetPlatform.macOS;
+
+      if (isSupportedPlatform) {
+        try {
+          final compressedBytes = await FlutterImageCompress.compressWithList(
+            originalBytes,
+            minHeight: 512,
+            minWidth: 512,
+            quality: 70,
+          );
+          if (compressedBytes.isNotEmpty) {
+            uploadData = compressedBytes;
+            compressionSuccess = true; 
+          }
+        } catch (e) {
+          debugPrint("Compression skipped/failed: $e");
+        }
+      }
+      
+      // If compression skipped, set correct content type based on extension
+      // This prevents "EncodingError" when a PNG is treated as a JPEG
+      if (!compressionSuccess) {
+        final String extension = picked.name.split('.').last.toLowerCase();
+        if (extension == 'png') contentType = 'image/png';
+        if (extension == 'webp') contentType = 'image/webp';
+      }
+
+      // 4. Upload
       final ref = FirebaseStorage.instance
           .ref()
           .child('profile_photos')
-          .child('${user.uid}.jpg');
+          .child('${user.uid}.jpg'); // Storing as .jpg is fine if metadata is correct
 
-      // On web, the plugin returns no usable local File path. Use putData instead.
-      TaskSnapshot snapshot;
-      if (kIsWeb) {
-        final bytes = await picked.readAsBytes();
-        final uploadTask = ref.putData(
-          bytes,
-          SettableMetadata(contentType: 'image/jpeg'),
-        );
-        snapshot = await uploadTask;
-      } else {
-        final file = File(picked.path);
-        final uploadTask = ref.putFile(
-          file,
-          SettableMetadata(contentType: 'image/jpeg'),
-        );
-        snapshot = await uploadTask;
-      }
-
+      final uploadTask = ref.putData(
+        uploadData,
+        SettableMetadata(contentType: contentType),
+      );
+      
+      final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
+      // 5. Force Cache Clear
+      // This evicts the specific URL from the image cache
+      await NetworkImage(downloadUrl).evict();
+      // Optionally clear the entire cache if the above isn't enough
+      PaintingBinding.instance.imageCache.clear();
+
+      // 6. Update Auth Profile
       await user.updatePhotoURL(downloadUrl);
       await user.reload();
-      _user = FirebaseAuth.instance.currentUser;
+      
+      setState(() {
+        _user = FirebaseAuth.instance.currentUser;
+        // Update the timestamp to force the widget to rebuild
+        _lastUploadTimestamp = DateTime.now().millisecondsSinceEpoch;
+      });
+      
       showToast(message: 'Profile photo updated');
     } on FirebaseException catch (fe) {
-      debugPrint(
-        'FirebaseException during photo upload: ${fe.code} ${fe.message}',
-      );
-      showToast(message: 'Upload failed: ${fe.message ?? fe.code}');
-    } catch (e, st) {
-      debugPrint('Photo upload failed: $e');
-      debugPrintStack(stackTrace: st);
-      showToast(message: 'Failed to update profile photo: ${e.toString()}');
+      debugPrint('Storage Error: ${fe.code} ${fe.message}');
+      showToast(message: 'Upload failed. Check permissions.');
+    } catch (e) {
+      debugPrint('General Error: $e');
+      showToast(message: 'Failed to update photo');
     } finally {
       if (mounted) setState(() => _isUploadingPhoto = false);
     }
@@ -143,9 +192,10 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       await _user?.updateDisplayName(result);
       await FirebaseAuth.instance.currentUser?.reload();
-      _user = FirebaseAuth.instance.currentUser;
+      setState(() {
+         _user = FirebaseAuth.instance.currentUser;
+      });
       showToast(message: 'Display name updated');
-      setState(() {});
     } catch (e) {
       debugPrint('Failed to update displayName: $e');
       showToast(message: 'Failed to update name');
@@ -197,22 +247,26 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    String? photoUrl = _user?.photoURL;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
       bottomNavigationBar: BottomNavBar(
         currentIndex: 2,
         onTap: (idx) {
-          if (idx == 2) return; // already on profile
-          if (idx == 0)
+          if (idx == 2) return; 
+          if (idx == 0) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const Homepage()),
             );
-          if (idx == 1)
+          }
+          if (idx == 1) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const TransfersPage()),
             );
+          }
         },
       ),
       body: SafeArea(
@@ -226,20 +280,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   height: 180,
                   width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
                       colors: [Color(0xFFDFF6DF), Color(0xFFE8D9FF)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(0),
-                      bottomRight: Radius.circular(0),
-                    ),
-                  ),
-                  child: const Align(
-                    alignment: Alignment.topLeft,
-                    child: SizedBox(width: 48),
                   ),
                 ),
 
@@ -250,35 +296,57 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       Stack(
                         children: [
-                          CircleAvatar(
-                            radius: 44,
-                            backgroundColor: Colors.grey.shade200,
-                            backgroundImage: _user?.photoURL != null
-                                ? NetworkImage(_user!.photoURL!)
-                                      as ImageProvider
-                                : null,
-                            child: _user?.photoURL == null
-                                ? Text(
-                                    _displayName().isNotEmpty
-                                        ? _displayName()[0].toUpperCase()
-                                        : '',
-                                    style: const TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
+                          Container(
+                            width: 88, 
+                            height: 88,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.grey.shade200,
+                              border: Border.all(color: Colors.white, width: 3),
+                            ),
+                            child: ClipOval(
+                              child: photoUrl != null
+                                  ? Image.network(
+                                      photoUrl,
+                                      // Use the timestamp key to force a rebuild on new upload
+                                      key: ValueKey("$_lastUploadTimestamp"), 
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return const Center(
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        );
+                                      },
+                                      errorBuilder: (context, error, stackTrace) {
+                                        debugPrint("Image Display Error: $error");
+                                        return const Icon(Icons.person, size: 40, color: Colors.grey);
+                                      },
+                                    )
+                                  : Center(
+                                      child: Text(
+                                        _displayName().isNotEmpty
+                                            ? _displayName()[0].toUpperCase()
+                                            : '',
+                                        style: const TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
-                                  )
-                                : null,
+                            ),
                           ),
+                          
+                          // Camera Icon
                           Positioned(
-                            right: -4,
-                            bottom: -4,
+                            right: 0,
+                            bottom: 0,
                             child: GestureDetector(
                               onTap: _pickAndUploadPhoto,
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   shape: BoxShape.circle,
-                                  boxShadow: [
+                                  boxShadow: const [
                                     BoxShadow(
                                       color: Colors.black12,
                                       blurRadius: 4,
@@ -297,7 +365,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Colors.black.withOpacity(0.35),
-                                  borderRadius: BorderRadius.circular(44),
+                                  shape: BoxShape.circle,
                                 ),
                                 child: const Center(
                                   child: SizedBox(
@@ -305,6 +373,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                     height: 28,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.5,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ),
@@ -373,27 +442,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
-                  // _buildTile(
-                  //   icon: Icons.face_rounded,
-                  //   title: 'Face ID',
-                  //   onTap: () => Navigator.push(
-                  //     context,
-                  //     MaterialPageRoute(builder: (_) => const FaceIDPage()),
-                  //   ),
-                  // ),
-                  // _buildTile(
-                  //   icon: Icons.fingerprint,
-                  //   title: 'Fingerprint ID',
-                  //   onTap: () => Navigator.push(
-                  //     context,
-                  //     MaterialPageRoute(
-                  //       builder: (_) => const FingerprintPage(),
-                  //     ),
-                  //   ),
-                  // ),
-
                   const SizedBox(height: 24),
-
                   // Logout
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),

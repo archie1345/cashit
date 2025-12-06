@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:cashit/page/home.dart';
 import 'package:cashit/page/profile.dart';
 import 'package:cashit/page/addRecipient.dart';
-import 'package:cashit/page/transferDetails.dart';
+import 'package:cashit/widget/transferDetails.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cashit/classes/colors.dart' as color;
 

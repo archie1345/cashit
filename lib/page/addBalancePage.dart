@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:cashit/backend/firebase_auth_service.dart';
 import 'package:cashit/classes/colors.dart';
 import 'package:cashit/classes/formatter.dart';
-import 'package:cashit/page/transactionStatus.dart';
+import 'package:cashit/widget/transactionStatus.dart';
 import 'package:cashit/widget/toast.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,7 +13,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -30,7 +29,7 @@ class _AddbalancepageState extends State<Addbalancepage> {
   bool _isLoading = false;
 
   bool _isAmountValid = false;
-  String? _helperText = "Enter amount to top up";
+  String? _helperText = "Enter amount";
   Color _helperColor = Colors.grey;
 
   static const pastelGreen = ColorPalletes.pastelGreen;
@@ -62,7 +61,7 @@ class _AddbalancepageState extends State<Addbalancepage> {
         _isAmountValid = false;
         _helperText = "Enter amount";
         _helperColor = Colors.grey;
-      } else if (cents < 50) { // Stripe minimum is usually 50 cents
+      } else if (cents < 50) {
         _isAmountValid = false;
         _helperText = "Minimum amount is \$0.50";
         _helperColor = Colors.red;
@@ -75,7 +74,6 @@ class _AddbalancepageState extends State<Addbalancepage> {
   }
 
   int _getCleanAmount(String value) {
-    // Remove non-digits ("1.000.000" -> "1000000")
     String clean = value.replaceAll(RegExp(r'[^0-9]'), '');
     return int.tryParse(clean) ?? 0;
   }
@@ -324,118 +322,182 @@ class _AddbalancepageState extends State<Addbalancepage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Top Up', style: GoogleFonts.poppins()),
-        backgroundColor: pastelpurple.withOpacity(0.8),
-      ),
-      backgroundColor: Colors.white,
-      body: Form(
-        key: _formKey,
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Amount',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _amountController,
-                      keyboardType:
-                        const TextInputType.numberWithOptions(decimal: false),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        CurrencyInputFormatter()
-                      ],
-                      style: GoogleFonts.poppins(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      decoration: InputDecoration(
-                        prefixText: '',
-                        hintText: '\$0.00',
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                        helperText: _helperText,
-                        helperStyle: TextStyle(color: _helperColor,fontWeight: FontWeight.bold),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter an amount';
-                        }
-                        if (int.tryParse(value) == null) {
-                          return 'Please enter a valid number';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 30),
-                    Text(
-                      'Payment Method',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: ListTile(
-                        leading: Icon(Icons.credit_card, color: pastelpurple),
-                        title: Text('Debit/Credit Card',
-                            style: GoogleFonts.poppins()),
-                        subtitle: Text('Powered by Stripe',
-                            style: GoogleFonts.poppins(fontSize: 12)),
-                        trailing: Icon(Icons.check_circle, color: Colors.green),
-                      ),
-                    ),
-                  ],
-                ),
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [pastelGreen, pastelpurple, pastelPink],
+                stops: [0.1, 0.5, 1.0],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  onPressed: (_isLoading || !_isAmountValid) ? null : _handleTopUp,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(
-                          'Top up',
+          ),
+          
+          SafeArea(
+            child: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 16.0),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Top Up Balance',
+                          textAlign: TextAlign.center,
                           style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            fontSize: 22, 
+                            fontWeight: FontWeight.w700
                           ),
                         ),
+                      ),
+                      const SizedBox(width: 48), // Balance the back button
+                    ],
+                  ),
                 ),
-              ),
+
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(top: 10),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(30),
+                        topRight: Radius.circular(30),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 15,
+                          offset: Offset(0, -5),
+                        )
+                      ],
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(30.0),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Amount to Add',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextFormField(
+                              controller: _amountController,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              inputFormatters: [
+                                CurrencyInputFormatter() 
+                              ],
+                              style: GoogleFonts.poppins(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              decoration: InputDecoration(
+                                prefixText: '', 
+                                hintText: '\$0.00', // USD Hint
+                                filled: true,
+                                fillColor: Colors.grey[100],
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                                helperText: _helperText,
+                                helperStyle: GoogleFonts.poppins(
+                                  color: _helperColor,
+                                  fontWeight: FontWeight.w500
+                                ),
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 40),
+                            
+                            // Payment Method Indicator
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(15),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.credit_card, color: Colors.purple),
+                                  const SizedBox(width: 16),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Payment Method",
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12, color: Colors.grey
+                                        ),
+                                      ),
+                                      Text(
+                                        "Debit / Credit Card",
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16, fontWeight: FontWeight.w600
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  const Icon(Icons.lock_outline, size: 18, color: Colors.grey),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 40),
+
+                            // Submit Button
+                            SizedBox(
+                              width: double.infinity,
+                              height: 55,
+                              child: ElevatedButton(
+                                onPressed: (_isLoading || !_isAmountValid) ? null : _handleTopUp,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.black,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: _isLoading
+                                    ? const CircularProgressIndicator(color: Colors.white)
+                                    : Text(
+                                        'Proceed to Payment',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

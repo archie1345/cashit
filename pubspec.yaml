@@ -30,6 +30,10 @@ dependencies:
   rxdart: ^0.28.0
   shared_preferences: ^2.5.3
   image_picker: ^0.8.7+5
+  flutter_image_compress: ^2.4.0
+  cached_network_image: ^3.4.1
+  path_provider: ^2.1.5
+  image_cropper: ^11.0.0
 
 dev_dependencies:
   flutter_test:

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:cashit/classes/colors.dart';
-import 'package:cashit/page/transactionStatus.dart';
+import 'package:cashit/widget/transactionStatus.dart';
 import 'package:cashit/widget/recentTransaction.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cashit/widget/bottom_nav.dart';

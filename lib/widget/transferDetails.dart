@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:cashit/backend/firebase_auth_service.dart';
 import 'package:cashit/classes/formatter.dart';
-import 'package:cashit/page/transactionStatus.dart';
+import 'package:cashit/widget/transactionStatus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

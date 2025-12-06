@@ -1,4 +1,4 @@
-import 'package:cashit/page/topUp.dart';
+import 'package:cashit/widget/topUp.dart';
 import 'package:cashit/classes/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';

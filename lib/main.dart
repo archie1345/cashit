@@ -11,7 +11,7 @@ import 'package:cashit/page/registrationForm.dart';
 import 'package:cashit/page/splashScreen.dart';
 import 'package:cashit/page/home.dart';
 import 'package:cashit/page/topUpMenu.dart';
-import 'package:cashit/page/transactionStatus.dart';
+import 'package:cashit/widget/transactionStatus.dart';
 import 'package:cashit/page/transfers.dart';
 import 'package:cashit/page/forgot_password.dart';
 import 'package:flutter/foundation.dart';
