@@ -23,6 +23,7 @@ class TopUpMenuPage extends StatelessWidget {
           inputLabel: 'Meter Number / ID',
           placeholder: 'Enter 11-12 digit ID',
           billerStripeId: 'acct_1SW6MSKB847mXoXV',
+          billType: 'electricity',
         ),
       },
       {
@@ -38,6 +39,7 @@ class TopUpMenuPage extends StatelessWidget {
           inputLabel: 'Phone Number',
           placeholder: '08...',
           billerStripeId: 'acct_1SW6WZKB84mNMPPL',
+          billType: 'phoneCredit',
         ),
       },
       {
@@ -53,6 +55,7 @@ class TopUpMenuPage extends StatelessWidget {
           inputLabel: 'Customer ID',
           placeholder: 'Enter Customer ID',
           billerStripeId: 'acct_1SW6o6KB84Ogk67V',
+          billType: 'water',
         ),
       },
       {
@@ -68,6 +71,7 @@ class TopUpMenuPage extends StatelessWidget {
           inputLabel: 'Account Number',
           placeholder: 'Enter Account No',
           billerStripeId: 'acct_1SW6jJKB842UpowN',
+          billType: 'internet',
         ),
       },
       {
@@ -83,6 +87,7 @@ class TopUpMenuPage extends StatelessWidget {
           inputLabel: 'VA Number',
           placeholder: 'Enter Virtual Account',
           billerStripeId: 'acct_1SW6t8KB843Nnas6',
+          billType: 'bpjs',
         ),
       },
     ];

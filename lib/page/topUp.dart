@@ -16,6 +16,7 @@ class TopUpPage extends StatefulWidget {
   final String inputLabel;
   final String placeholder;
   final String billerStripeId;
+  final String billType;
   
   const TopUpPage({
     super.key,
@@ -25,6 +26,7 @@ class TopUpPage extends StatefulWidget {
     required this.iconColor,
     required this.inputLabel,
     required this.billerStripeId,
+    required this.billType,
     this.placeholder = 'Enter ID Number',
     });
 
@@ -83,6 +85,7 @@ class _TopUpPageState extends State<TopUpPage> {
           'billerAccountId': widget.billerStripeId,
           'accountNumber': customerId,
           'pin': pin,
+          'billType': widget.billType,
         }),
       );
 

@@ -47,6 +47,7 @@ class TransactionTile extends StatelessWidget {
     final String type = (transaction['type'] ?? 'UNKNOWN').toString().toUpperCase();
     final int amount = transaction['amount'] ?? 0;
     final String status = (transaction['status'] ?? 'COMPLETED').toString().toUpperCase();
+    final String billType = (transaction['billType'] ?? '').toString().toUpperCase();
 
     String title = 'Unknown Transaction';
     String amountDisplay = '';
@@ -55,26 +56,23 @@ class TransactionTile extends StatelessWidget {
     Color iconColor = Colors.black87;
     String dateDisplay = '';
 
-    // --- STATUS LOGIC ---
     bool isFailed = status == 'FAILED';
     bool isCanceled = status == 'CANCELED';
     bool isExpired = status == 'EXPIRED';
     bool isPending = status == 'PENDING';
     bool isSuccess = status == 'COMPLETED' || status == 'SUCCESS';
 
-    // --- SENDER/RECEIVER LOGIC ---
     bool isSender = false;
     if (type == 'P2P_TRANSFER') {
       isSender = (transaction['senderId'] == currentUserId);
     } else if (type == 'WITHDRAWAL' || 
                type == 'BILL_PAYMENT' || 
-               type == 'BILL-PAYMENT') { // <--- ADDED BILL-PAYMENT CHECK
+               type == 'BILL-PAYMENT') {
       isSender = true;
     } else if (type == 'TOP-UP' || type == 'TOPUP') {
       isSender = false;
     }
 
-    // --- CONTENT LOGIC ---
     if (isSender) {
       amountDisplay = '- ${_formatCurrency(amount)}';
       amountColor = isSuccess ? Colors.red[700]! : Colors.grey;
@@ -82,10 +80,27 @@ class TransactionTile extends StatelessWidget {
       if (type == 'P2P_TRANSFER') {
         title = 'Sent to @${transaction['recipientUsername'] ?? 'User'}';
         iconData = Icons.arrow_outward_rounded;
-      } else if (type.contains('BILL')) { // Catches BILL_PAYMENT and BILL-PAYMENT
-        title = 'Bill Payment';
-        iconData = Icons.receipt_long_rounded;
-      } else {
+      } else if (type.contains('BILL')) {
+          if (billType == 'ELECTRICITY') {
+            title = 'Electricity Bill';
+            iconData = Icons.lightbulb_outline;
+          } else if (billType == 'WATER') {
+            title = 'Water Bill';
+            iconData = Icons.water_drop_outlined;
+          } else if (billType == 'INTERNET') {
+            title = 'Internet Bill';
+            iconData = Icons.wifi;
+          } else if (billType == 'PHONECREDIT') {
+            title = 'Phone Credit';
+            iconData = Icons.phone_android;
+          } else if (billType == 'HEALTH' || billType == 'BPJS') {
+            title = 'BPJS Health';
+            iconData = Icons.health_and_safety_outlined;
+          } else {
+            title = 'Bill Payment';
+            iconData = Icons.receipt_long_rounded;
+          }
+        } else {
         title = 'Withdrawal';
         iconData = Icons.account_balance_rounded;
       }
@@ -102,7 +117,6 @@ class TransactionTile extends StatelessWidget {
       }
     }
 
-    // --- OVERRIDE UI BASED ON STATUS ---
     if (isExpired) {
       title = '$title (Expired)';
       iconData = Icons.timer_off_outlined;

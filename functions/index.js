@@ -653,7 +653,7 @@ app.post('/api/create-payout', authenticateFirebaseToken, async (req, res) => {
 app.post('/api/pay-bill',authenticateFirebaseToken, async (req, res) => {
   try{
     const stripe = new Stripe(STRIPE_SECRET_KEY.value());
-    const {amount, billerAccountId, accountNumber, pin} = req.body;
+    const {amount, billerAccountId, accountNumber, pin, billType} = req.body;
     const senderId = req.user.uid;
     const amountInt = parseInt(amount, 10);
 
@@ -724,7 +724,8 @@ app.post('/api/pay-bill',authenticateFirebaseToken, async (req, res) => {
       t.set(topupRef, {
         userId: senderId,
         amount: amountInt,
-        type: 'bill-payment',
+        type: 'BILL_PAYMENT',
+        billType: billType || 'GENERIC',
         status: 'completed',
         gateway: 'Stripe',
         gatewayChargeId: reverseTransfer.id,

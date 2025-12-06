@@ -59,14 +59,15 @@ class TransactionDetailPage extends StatelessWidget {
     final String type = (transaction['type'] ?? 'UNKNOWN').toString().toUpperCase();
     final int amount = transaction['amount'] ?? 0;
     final String status = (transaction['status'] ?? 'COMPLETED').toString().toUpperCase();
+    final String billType = (transaction['billType'] ?? '').toString().toUpperCase();
     
-    // --- UI Logic ---
     String title = 'Transaction';
     IconData icon = Icons.receipt;
     Color color = Colors.black;
     bool isNegative = false;
     String counterPartyLabel = 'Details';
     String counterPartyValue = '-';
+    String billTypeDisplay = '';
 
     if (type == 'P2P_TRANSFER') {
       if (transaction['senderId'] == currentUserId) {
@@ -98,9 +99,32 @@ class TransactionDetailPage extends StatelessWidget {
       isNegative = true;
       counterPartyLabel = 'Destination';
       counterPartyValue = 'Bank Account';
-    } else if (type.contains('BILL')) { // Catches BILL_PAYMENT & BILL-PAYMENT
-      title = 'Bill Payment';
-      icon = Icons.receipt_long_rounded;
+    } else if (type.contains('BILL')) {
+      if (billType == 'ELECTRICITY') {
+        title = 'Electricity Bill';
+        icon = Icons.lightbulb_outline;
+        billTypeDisplay = 'Electricity';
+      } else if (billType == 'WATER') {
+        title = 'Water Bill';
+        icon = Icons.water_drop_outlined;
+        billTypeDisplay = 'Water (PDAM)';
+      } else if (billType == 'INTERNET') {
+        title = 'Internet Bill';
+        icon = Icons.wifi;
+        billTypeDisplay = 'Internet';
+      } else if (billType == 'PHONECREDIT') {
+        title = 'Phone Credit';
+        icon = Icons.phone_android;
+        billTypeDisplay = 'Phone Credit';
+      } else if (billType == 'HEALTH' || billType == 'BPJS') {
+        title = 'BPJS Health';
+        icon = Icons.health_and_safety_outlined;
+        billTypeDisplay = 'Health / BPJS';
+      } else {
+        title = 'Bill Payment';
+        icon = Icons.receipt_long_rounded;
+        billTypeDisplay = 'Other';
+      }
       color = Colors.red;
       isNegative = true;
       counterPartyLabel = 'Account / ID';
@@ -209,6 +233,10 @@ class TransactionDetailPage extends StatelessWidget {
                 children: [
                   _buildDetailRow('Date', _formatDate(transaction['createdAt'])),
                   const Divider(height: 30),
+                  if (billTypeDisplay.isNotEmpty) ...[
+                    _buildDetailRow('Bill Type', billTypeDisplay),
+                    const Divider(height: 30),
+                  ],
                   _buildDetailRow(counterPartyLabel, counterPartyValue),
                   if (transaction['message'] != null && transaction['message'].toString().isNotEmpty) ...[
                     const Divider(height: 30),
