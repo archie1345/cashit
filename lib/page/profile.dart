@@ -11,10 +11,7 @@ import 'package:cashit/page/pin.dart';
 import 'package:cashit/page/personalInformation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-// Removed cached_network_image to rely on standard Image.network with manual cache busting
-// This is often more reliable for profile pictures that change frequently during dev.
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -29,9 +26,6 @@ class _ProfilePageState extends State<ProfilePage> {
   User? _user;
   bool _isSigningOut = false;
   bool _isUploadingPhoto = false;
-  
-  // This timestamp acts as a unique key. When it changes, the Image widget 
-  // is destroyed and recreated, forcing a fresh network request.
   int _lastUploadTimestamp = DateTime.now().millisecondsSinceEpoch;
   
   final ImagePicker _picker = ImagePicker();
@@ -59,7 +53,6 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _pickAndUploadPhoto() async {
     if (_isUploadingPhoto) return;
     try {
-      // 1. Pick Image
       final XFile? picked = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1024,
@@ -76,7 +69,6 @@ class _ProfilePageState extends State<ProfilePage> {
         return;
       }
 
-      // 2. Read Bytes
       final Uint8List originalBytes = await picked.readAsBytes();
       if (originalBytes.isEmpty) {
         showToast(message: 'Error: Image is empty');
@@ -87,7 +79,6 @@ class _ProfilePageState extends State<ProfilePage> {
       String contentType = 'image/jpeg'; 
       bool compressionSuccess = false;
 
-      // 3. Attempt Compression
       final bool isSupportedPlatform = kIsWeb || 
                                        defaultTargetPlatform == TargetPlatform.android || 
                                        defaultTargetPlatform == TargetPlatform.iOS || 
@@ -110,15 +101,12 @@ class _ProfilePageState extends State<ProfilePage> {
         }
       }
       
-      // If compression skipped, set correct content type based on extension
-      // This prevents "EncodingError" when a PNG is treated as a JPEG
       if (!compressionSuccess) {
         final String extension = picked.name.split('.').last.toLowerCase();
         if (extension == 'png') contentType = 'image/png';
         if (extension == 'webp') contentType = 'image/webp';
       }
 
-      // 4. Upload
       final ref = FirebaseStorage.instance
           .ref()
           .child('profile_photos')
@@ -132,19 +120,14 @@ class _ProfilePageState extends State<ProfilePage> {
       final snapshot = await uploadTask;
       final downloadUrl = await snapshot.ref.getDownloadURL();
 
-      // 5. Force Cache Clear
-      // This evicts the specific URL from the image cache
       await NetworkImage(downloadUrl).evict();
-      // Optionally clear the entire cache if the above isn't enough
       PaintingBinding.instance.imageCache.clear();
 
-      // 6. Update Auth Profile
       await user.updatePhotoURL(downloadUrl);
       await user.reload();
       
       setState(() {
         _user = FirebaseAuth.instance.currentUser;
-        // Update the timestamp to force the widget to rebuild
         _lastUploadTimestamp = DateTime.now().millisecondsSinceEpoch;
       });
       
@@ -308,7 +291,6 @@ class _ProfilePageState extends State<ProfilePage> {
                               child: photoUrl != null
                                   ? Image.network(
                                       photoUrl,
-                                      // Use the timestamp key to force a rebuild on new upload
                                       key: ValueKey("$_lastUploadTimestamp"), 
                                       fit: BoxFit.cover,
                                       loadingBuilder: (context, child, loadingProgress) {
